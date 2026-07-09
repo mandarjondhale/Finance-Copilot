@@ -1,0 +1,23 @@
+# Python virtual environment
+.venv/
+venv/
+
+# Node dependencies
+node_modules/
+frontend/node_modules/
+
+# Next.js
+.next/
+frontend/.next/
+
+# Environment variables
+.env
+frontend/.env
+backend/.env
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
