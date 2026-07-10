@@ -36,11 +36,20 @@ def get_price_data(ticker: str) -> dict:
 
     # 1 year of daily price history
     hist_1y = stock.history(period="1y")
+    if not hist_1y.empty:
+        hist_1y = hist_1y.dropna(subset=["Close"])
+
     hist_6m = stock.history(period="6mo")
+    if not hist_6m.empty:
+        hist_6m = hist_6m.dropna(subset=["Close"])
+
     hist_1m = stock.history(period="1mo")
+    if not hist_1m.empty:
+        hist_1m = hist_1m.dropna(subset=["Close"])
 
     if hist_1y.empty:
         return {"error": f"No data for {ticker}. Check ticker symbol."}
+
 
     current_price  = round(hist_1y["Close"].iloc[-1], 2)
     price_1y_ago   = round(hist_1y["Close"].iloc[0], 2)

@@ -31,10 +31,10 @@ function changeColor(v) {
 
 function Card({ title, children, className = "" }) {
   return (
-    <div className={`bg-white border border-gray-200 rounded-2xl overflow-hidden ${className}`}>
+    <div className={`bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl overflow-hidden shadow-lg shadow-black/10 ${className}`}>
       {title && (
-        <div className="px-5 py-3 border-b border-gray-100">
-          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{title}</span>
+        <div className="px-5 py-3 border-b border-slate-800/50 bg-slate-950/20">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">{title}</span>
         </div>
       )}
       <div className="p-5">{children}</div>
@@ -44,10 +44,12 @@ function Card({ title, children, className = "" }) {
 
 function Metric({ label, value, sub, color }) {
   return (
-    <div className="bg-gray-50 rounded-xl p-3 border border-gray-100">
-      <div className="text-xs text-gray-400 mb-1">{label}</div>
-      <div className={`text-sm font-bold ${color || "text-gray-900"}`}>{value}</div>
-      {sub && <div className="text-xs text-gray-400 mt-0.5">{sub}</div>}
+    <div className="bg-slate-950/40 rounded-xl p-3.5 border border-slate-800/40 hover:border-slate-700/60 transition-colors flex flex-col justify-between h-full min-h-[92px]">
+      <div>
+        <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">{label}</div>
+        <div className={`text-base font-bold tracking-tight ${color || "text-slate-100"}`}>{value}</div>
+      </div>
+      {sub && <div className="text-[10px] text-slate-400 mt-1 leading-snug">{sub}</div>}
     </div>
   );
 }
@@ -56,14 +58,14 @@ function ScoreBar({ label, score, max, color }) {
   const pctWidth = Math.round((score / max) * 100);
   return (
     <div className="mb-3">
-      <div className="flex justify-between text-xs mb-1">
-        <span className="text-gray-600">{label}</span>
-        <span className="font-semibold text-gray-900">{score}/{max}</span>
+      <div className="flex justify-between text-xs mb-1.5">
+        <span className="text-slate-300 font-medium">{label}</span>
+        <span className="font-bold text-slate-100">{score}/{max}</span>
       </div>
-      <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+      <div className="h-2 bg-slate-800/60 rounded-full overflow-hidden border border-slate-700/30">
         <div
-          className={`h-full rounded-full ${color}`}
-          style={{ width: `${pctWidth}%`, transition: "width 0.6s ease" }}
+          className={`h-full rounded-full transition-all duration-700 ease-out ${color}`}
+          style={{ width: `${pctWidth}%` }}
         />
       </div>
     </div>
@@ -72,9 +74,9 @@ function ScoreBar({ label, score, max, color }) {
 
 function Flag({ text, type }) {
   return (
-    <div className={`flex gap-2 items-start text-xs py-1.5 px-3 rounded-lg mb-1
-      ${type === "good" ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-700"}`}>
-      <span>{type === "good" ? "✓" : "⚠"}</span>
+    <div className={`flex gap-2 items-start text-xs py-2 px-3 border rounded-xl mb-1.5 font-medium leading-relaxed
+      ${type === "good" ? "bg-emerald-500/5 border-emerald-500/20 text-emerald-400" : "bg-rose-500/5 border-rose-500/20 text-rose-400"}`}>
+      <span className="text-sm shrink-0">{type === "good" ? "✓" : "⚠"}</span>
       <span>{text}</span>
     </div>
   );
@@ -83,11 +85,12 @@ function Flag({ text, type }) {
 function Check({ label, passed }) {
   return (
     <div className="flex items-center gap-2 text-xs py-1">
-      <span className={passed ? "text-emerald-500" : "text-red-400"}>{passed ? "✓" : "✗"}</span>
-      <span className={passed ? "text-gray-700" : "text-gray-400"}>{label}</span>
+      <span className={`font-bold ${passed ? "text-emerald-400" : "text-rose-400/80"}`}>{passed ? "✓" : "✗"}</span>
+      <span className={passed ? "text-slate-200" : "text-slate-500"}>{label}</span>
     </div>
   );
 }
+
 
 // ── Authentication Screen ─────────────────────────────────────────────────────
 
@@ -140,67 +143,68 @@ function LoginScreen({ onLogin }) {
   }
 
   return (
-    <div className="flex items-center justify-center w-full py-8">
-      <div className="bg-white border border-gray-200 rounded-2xl p-8 w-full max-w-sm shadow-sm">
+    <div className="flex items-center justify-center w-full py-12">
+      <div className="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl p-8 w-full max-w-sm shadow-xl shadow-black/20">
         <div className="text-center mb-6">
-          <h2 className="text-xl font-bold text-gray-900">
-            {mode === "login" ? "Welcome back" : "Create an account"}
+          <h2 className="text-xl font-extrabold text-slate-100">
+            {mode === "login" ? "Welcome back" : "Create account"}
           </h2>
-          <p className="text-sm text-gray-500 mt-1">Sign in to track your portfolio</p>
+          <p className="text-xs text-slate-400 mt-1.5">Sign in to track your portfolio snapshots</p>
         </div>
 
-        <div className="flex gap-1 bg-gray-100 rounded-xl p-1 mb-6">
+        <div className="flex gap-1 bg-slate-950/60 border border-slate-800/40 rounded-xl p-1 mb-6">
           {["login","signup"].map(m => (
             <button key={m} type="button" onClick={() => { setMode(m); setError(""); setVerifyMsg(""); }}
-              className={`flex-1 text-sm py-1.5 rounded-lg font-medium transition-colors
-                ${mode === m ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+              className={`flex-1 text-xs py-2 rounded-lg font-bold transition-all duration-200
+                ${mode === m ? "bg-slate-800 text-slate-100 shadow-sm" : "text-slate-500 hover:text-slate-300"}`}>
               {m === "login" ? "Log in" : "Sign up"}
             </button>
           ))}
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {mode === "signup" && (
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Full name</label>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Full name</label>
               <input value={name} onChange={e => setName(e.target.value)}
                 placeholder="Mandar Jondhale"
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"/>
+                className="w-full bg-slate-950/50 border border-slate-800/60 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 text-slate-100 placeholder-slate-600 focus:border-teal-500/50 transition-all"/>
             </div>
           )}
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Email</label>
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Email Address</label>
             <input type="email" value={email} onChange={e => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"/>
+              className="w-full bg-slate-950/50 border border-slate-800/60 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 text-slate-100 placeholder-slate-600 focus:border-teal-500/50 transition-all"/>
           </div>
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Password</label>
+            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1.5 block">Password</label>
             <input type="password" value={password} onChange={e => setPassword(e.target.value)}
-              placeholder="Min 6 characters"
-              className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"/>
+              placeholder="••••••••"
+              className="w-full bg-slate-950/50 border border-slate-800/60 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 text-slate-100 placeholder-slate-600 focus:border-teal-500/50 transition-all"/>
           </div>
           
           {/* Validation Messages */}
-          {error && <div className="bg-red-50 border border-red-200 text-red-600 text-xs rounded-lg px-3 py-2">{error}</div>}
-          {verifyMsg && <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs rounded-lg px-3 py-2">{verifyMsg}</div>}
+          {error && <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs rounded-xl px-3 py-2.5">{error}</div>}
+          {verifyMsg && <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs rounded-xl px-3 py-2.5">{verifyMsg}</div>}
           
           <button type="submit" disabled={loading}
-            className="w-full bg-teal-600 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-teal-700 disabled:opacity-50 transition-colors mt-1">
-            {loading ? "Please wait…" : mode === "login" ? "Log in →" : "Create account →"}
+            className="w-full bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white py-2.5 rounded-xl text-sm font-semibold shadow-md shadow-teal-950/20 transition-all disabled:opacity-50 mt-2">
+            {loading ? "Verifying..." : mode === "login" ? "Log in →" : "Create account →"}
           </button>
         </form>
 
-        <p className="text-xs text-gray-400 text-center mt-4">
-          {mode === "login" ? "No account? " : "Already have one? "}
+        <p className="text-xs text-slate-500 text-center mt-5">
+          {mode === "login" ? "Need an account? " : "Have an account? "}
           <button type="button" onClick={() => { setMode(mode==="login"?"signup":"login"); setError(""); setVerifyMsg(""); }}
-            className="text-teal-600 hover:underline font-medium">
+            className="text-teal-400 hover:text-teal-300 hover:underline font-bold">
             {mode === "login" ? "Sign up" : "Log in"}
           </button>
         </p>
       </div>
     </div>
   );
+
 }
 
 // ── Interactive Charts ────────────────────────────────────────────────────────
@@ -225,13 +229,13 @@ function StockPriceChart({ history }) {
         datasets: [{
           label: "Price (₹)",
           data: dataPoints,
-          borderColor: "#0f766e",
+          borderColor: "#06b6d4",
           borderWidth: 2,
           pointRadius: 1,
           pointHoverRadius: 5,
           tension: 0.2,
           fill: "origin",
-          backgroundColor: "rgba(15, 118, 110, 0.05)"
+          backgroundColor: "rgba(6, 182, 212, 0.05)"
         }]
       },
       options: {
@@ -239,8 +243,14 @@ function StockPriceChart({ history }) {
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: {
-          x: { grid: { display: false }, ticks: { maxTicksLimit: 8, font: { size: 10 } } },
-          y: { grid: { color: "#f1f5f9" }, ticks: { font: { size: 10 } } }
+          x: { 
+            grid: { display: false }, 
+            ticks: { maxTicksLimit: 8, font: { size: 10 }, color: "#64748b" } 
+          },
+          y: { 
+            grid: { color: "rgba(255, 255, 255, 0.05)" }, 
+            ticks: { font: { size: 10 }, color: "#64748b" } 
+          }
         }
       }
     });
@@ -248,8 +258,8 @@ function StockPriceChart({ history }) {
   }, [history]);
 
   return (
-    <div className="w-full h-64 bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-      <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-3">30-Day Price Trend</span>
+    <div className="w-full h-64 bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl p-4 shadow-lg shadow-black/10">
+      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-3">30-Day Price Trend</span>
       <div className="w-full h-48">
         <canvas ref={canvasRef} />
       </div>
@@ -280,12 +290,12 @@ function MFNavChart({ history }) {
         datasets: [{
           label: "NAV (₹)",
           data: dataPoints,
-          borderColor: "#0284c7",
+          borderColor: "#a855f7",
           borderWidth: 2,
           pointRadius: 2,
           tension: 0.2,
           fill: true,
-          backgroundColor: "rgba(2, 132, 199, 0.05)"
+          backgroundColor: "rgba(168, 85, 247, 0.05)"
         }]
       },
       options: {
@@ -293,8 +303,14 @@ function MFNavChart({ history }) {
         maintainAspectRatio: false,
         plugins: { legend: { display: false } },
         scales: {
-          x: { grid: { display: false }, ticks: { maxTicksLimit: 6, font: { size: 10 } } },
-          y: { grid: { color: "#f1f5f9" }, ticks: { font: { size: 10 } } }
+          x: { 
+            grid: { display: false }, 
+            ticks: { maxTicksLimit: 6, font: { size: 10 }, color: "#64748b" } 
+          },
+          y: { 
+            grid: { color: "rgba(255, 255, 255, 0.05)" }, 
+            ticks: { font: { size: 10 }, color: "#64748b" } 
+          }
         }
       }
     });
@@ -302,8 +318,8 @@ function MFNavChart({ history }) {
   }, [history]);
 
   return (
-    <div className="w-full h-64 bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-      <span className="text-xs font-semibold text-gray-400 uppercase tracking-wide block mb-3">NAV Performance History</span>
+    <div className="w-full h-64 bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl p-4 shadow-lg shadow-black/10">
+      <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-3">NAV Performance History</span>
       <div className="w-full h-48">
         <canvas ref={canvasRef} />
       </div>
@@ -335,8 +351,8 @@ function PortfolioHistoryChart({ history }) {
           {
             label: "Total Value (₹)",
             data: totalValues,
-            borderColor: "#0d9488",
-            backgroundColor: "rgba(13, 148, 136, 0.05)",
+            borderColor: "#10b981",
+            backgroundColor: "rgba(16, 185, 129, 0.05)",
             fill: true,
             tension: 0.3,
             borderWidth: 2,
@@ -344,7 +360,7 @@ function PortfolioHistoryChart({ history }) {
           {
             label: "Total Invested (₹)",
             data: totalInvested,
-            borderColor: "#94a3b8",
+            borderColor: "#64748b",
             borderWidth: 1.5,
             borderDash: [5, 5],
             fill: false,
@@ -358,12 +374,18 @@ function PortfolioHistoryChart({ history }) {
         plugins: {
           legend: {
             position: "top",
-            labels: { boxWidth: 12, font: { size: 11 } }
+            labels: { boxWidth: 12, font: { size: 11 }, color: "#94a3b8" }
           }
         },
         scales: {
-          x: { grid: { display: false }, ticks: { font: { size: 10 } } },
-          y: { grid: { color: "#f1f5f9" }, ticks: { font: { size: 10 } } }
+          x: { 
+            grid: { display: false }, 
+            ticks: { font: { size: 10 }, color: "#64748b" } 
+          },
+          y: { 
+            grid: { color: "rgba(255, 255, 255, 0.05)" }, 
+            ticks: { font: { size: 10 }, color: "#64748b" } 
+          }
         }
       }
     });
@@ -372,18 +394,19 @@ function PortfolioHistoryChart({ history }) {
 
   if (!history || history.length === 0) {
     return (
-      <div className="bg-white border border-dashed border-gray-200 rounded-2xl p-6 text-center text-xs text-gray-400">
+      <div className="bg-slate-900/40 border border-dashed border-slate-800 rounded-2xl p-6 text-center text-xs text-slate-500">
         Balance snapshot history will display here once daily portfolio changes are recorded.
       </div>
     );
   }
 
   return (
-    <div className="w-full h-64 bg-white border border-gray-200 rounded-2xl p-4 shadow-sm">
-      <div className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-3">Portfolio Performance History</div>
+    <div className="w-full h-64 bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl p-4 shadow-lg shadow-black/10">
+      <div className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">Portfolio Performance History</div>
       <div className="w-full h-48">
         <canvas ref={canvasRef} />
       </div>
+
     </div>
   );
 }
@@ -464,53 +487,54 @@ function BrokerConnectModal({ broker, onClose, onSuccess }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
-      <div className="bg-white border border-gray-200 rounded-2xl p-6 w-full max-w-sm shadow-xl relative animate-in zoom-in-95 duration-200">
-        <button onClick={onClose} className="absolute right-4 top-4 text-gray-400 hover:text-gray-600 font-bold text-lg">×</button>
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-in fade-in duration-200">
+      <div className="bg-[#0b0f19] border border-slate-800/80 rounded-2xl p-8 w-full max-w-sm shadow-2xl relative animate-in zoom-in-95 duration-200">
+        <button onClick={onClose} className="absolute right-4 top-4 text-slate-500 hover:text-slate-300 font-bold text-xl">×</button>
         
         <div className="text-center mb-6">
-          <h3 className="text-lg font-bold text-gray-900">Connect to {brokerNames[broker]}</h3>
-          <p className="text-xs text-gray-400 mt-1">Establishing a secure connection with your broker portal</p>
+          <h3 className="text-lg font-bold text-slate-100">Connect to {brokerNames[broker]}</h3>
+          <p className="text-xs text-slate-400 mt-1">Establishing a secure connection with your broker portal</p>
         </div>
 
-        {error && <div className="mb-4 text-xs text-red-600 bg-red-50 p-2 rounded-lg border border-red-100">{error}</div>}
+        {error && <div className="mb-4 text-xs text-rose-400 bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/20">{error}</div>}
 
         {step === 1 ? (
-          <form onSubmit={handleRequestOtp} className="space-y-3">
+          <form onSubmit={handleRequestOtp} className="space-y-4">
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Client ID / Mobile Number</label>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Client ID / Mobile Number</label>
               <input value={clientId} onChange={e => setClientId(e.target.value)}
                 placeholder="e.g. AB1234 or 9876543210"
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" required />
+                className="w-full bg-slate-950/50 border border-slate-800/60 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 text-slate-100 placeholder-slate-600 focus:border-teal-500/50 transition-all" required />
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Password / PIN</label>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Password / PIN</label>
               <input type="password" value={password} onChange={e => setPassword(e.target.value)}
                 placeholder="••••••"
-                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" required />
+                className="w-full bg-slate-950/50 border border-slate-800/60 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 text-slate-100 placeholder-slate-600 focus:border-teal-500/50 transition-all" required />
             </div>
             <button type="submit" disabled={loading}
-              className="w-full bg-teal-600 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-teal-700 disabled:opacity-50 transition-colors mt-2">
+              className="w-full bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white py-2.5 rounded-xl text-sm font-semibold shadow-md shadow-teal-950/20 transition-all disabled:opacity-50 mt-2">
               {loading ? "Authenticating..." : "Verify & Send OTP →"}
             </button>
           </form>
         ) : (
-          <form onSubmit={handleVerifyOtp} className="space-y-3">
+          <form onSubmit={handleVerifyOtp} className="space-y-4">
             <div>
-              <label className="text-xs text-gray-500 mb-1 block">Verification OTP</label>
+              <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1 block">Verification OTP</label>
               <input value={otp} onChange={e => setOtp(e.target.value)}
                 placeholder="Enter 6-digit OTP code"
-                className="w-full text-center tracking-widest border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500 font-bold" maxLength={6} required />
+                className="w-full text-center tracking-widest bg-slate-950/50 border border-slate-800/60 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 text-slate-100 placeholder-slate-600 focus:border-teal-500/50 font-bold transition-all" maxLength={6} required />
             </div>
             <button type="submit" disabled={loading}
-              className="w-full bg-emerald-600 text-white py-2.5 rounded-xl text-sm font-medium hover:bg-emerald-700 disabled:opacity-50 transition-colors mt-2">
+              className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white py-2.5 rounded-xl text-sm font-semibold shadow-md shadow-emerald-950/20 transition-all disabled:opacity-50 mt-2">
               {loading ? "Syncing Holdings..." : "Confirm & Import Holdings"}
             </button>
-            <button type="button" onClick={() => setStep(1)} className="w-full text-center text-xs text-teal-600 mt-2 font-medium">← Back</button>
+            <button type="button" onClick={() => setStep(1)} className="w-full text-center text-xs text-teal-400 hover:text-teal-300 mt-2 font-bold transition-colors">← Back</button>
           </form>
         )}
       </div>
     </div>
+
   );
 }
 
@@ -616,19 +640,19 @@ function PortfolioTab({ user }) {
     return (
       <div className="space-y-8 animate-in fade-in duration-300">
         <div>
-          <h2 className="text-lg font-bold text-gray-900 mb-4">Connect Stock Broker Account</h2>
+          <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-4">Connect Stock Broker Account</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {brokers.map(b => (
-              <div key={b.id} className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow flex flex-col justify-between">
+              <div key={b.id} className="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl p-6 shadow-lg hover:border-slate-700/60 transition-all flex flex-col justify-between">
                 <div>
-                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${b.color} flex items-center justify-center text-white font-bold text-lg mb-3 shadow-sm`}>
+                  <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${b.color} flex items-center justify-center text-white font-extrabold text-lg mb-3 shadow-md`}>
                     {b.logo}
                   </div>
-                  <h3 className="font-bold text-gray-900 text-sm">{b.name}</h3>
-                  <p className="text-xs text-gray-400 mt-1 leading-relaxed">{b.desc}</p>
+                  <h3 className="font-extrabold text-slate-200 text-sm">{b.name}</h3>
+                  <p className="text-xs text-slate-400 mt-1 leading-relaxed">{b.desc}</p>
                 </div>
                 <button onClick={() => setActiveBroker(b.id)}
-                  className="mt-4 w-full bg-gray-50 border border-gray-200 hover:border-teal-600 hover:bg-teal-50 text-gray-700 hover:text-teal-700 font-medium py-2 rounded-xl text-xs transition-colors">
+                  className="mt-5 w-full bg-slate-950/40 border border-slate-800/60 hover:border-teal-500/50 hover:bg-teal-500/10 text-slate-300 hover:text-teal-400 font-bold py-2.5 rounded-xl text-xs transition-all">
                   Link Account
                 </button>
               </div>
@@ -637,25 +661,26 @@ function PortfolioTab({ user }) {
         </div>
 
         <div className="relative flex py-2 items-center">
-          <div className="flex-grow border-t border-gray-200"></div>
-          <span className="flex-shrink mx-4 text-gray-400 text-xs font-semibold uppercase tracking-wider">Or</span>
-          <div className="flex-grow border-t border-gray-200"></div>
+          <div className="flex-grow border-t border-slate-800/60"></div>
+          <span className="flex-shrink mx-4 text-slate-500 text-[10px] font-bold uppercase tracking-widest">Or</span>
+          <div className="flex-grow border-t border-slate-800/60"></div>
         </div>
 
         <Card title="Upload Holdings CSV File">
           <form onSubmit={handleUpload} className="flex flex-col sm:flex-row items-center gap-4">
             <input type="file" accept=".csv" onChange={e => setFile(e.target.files[0])}
-              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-semibold file:bg-teal-50 file:text-teal-700 hover:file:bg-teal-100 cursor-pointer" />
+              className="block w-full text-sm text-slate-400 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-sm file:font-bold file:bg-teal-500/10 file:text-teal-400 hover:file:bg-teal-500/20 cursor-pointer" />
             <button type="submit" disabled={loading || !file}
-              className="w-full sm:w-auto bg-teal-600 text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-teal-700 disabled:opacity-50 whitespace-nowrap transition-colors">
+              className="w-full sm:w-auto bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white px-6 py-2.5 rounded-xl text-sm font-bold shadow-md shadow-teal-950/20 transition-all disabled:opacity-50 whitespace-nowrap">
               {loading ? "Analyzing..." : "Upload & Analyze"}
             </button>
           </form>
-          <p className="text-xs text-gray-400 mt-3 leading-relaxed">
+          <p className="text-xs text-slate-500 mt-3 leading-relaxed">
             Upload the standard holdings CSV exported from Zerodha Kite, Groww, Angel One, or Upstox. Column headers are automatically recognized.
           </p>
-          {error && <div className="mt-3 text-sm text-red-600 bg-red-50 p-2 rounded-lg border border-red-100">⚠ {error}</div>}
+          {error && <div className="mt-3 text-xs text-rose-400 bg-rose-500/10 p-2.5 rounded-xl border border-rose-500/20">⚠ {error}</div>}
         </Card>
+
 
         {activeBroker && (
           <BrokerConnectModal
@@ -723,12 +748,12 @@ function PortfolioTab({ user }) {
           <div className="space-y-2.5">
             {sortedSectors.map(([sector, pct]) => (
               <div key={sector}>
-                <div className="flex justify-between text-xs mb-1">
-                  <span className="text-gray-700 font-medium">{sector}</span>
-                  <span className="text-gray-500">{pct}%</span>
+                <div className="flex justify-between text-xs mb-1.5">
+                  <span className="text-slate-300 font-semibold">{sector}</span>
+                  <span className="text-slate-500 font-bold">{pct}%</span>
                 </div>
-                <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-teal-500 rounded-full" style={{ width: `${pct}%` }} />
+                <div className="h-1.5 bg-slate-800/60 rounded-full overflow-hidden border border-slate-700/30">
+                  <div className="h-full bg-gradient-to-r from-teal-400 to-cyan-500 rounded-full" style={{ width: `${pct}%` }} />
                 </div>
               </div>
             ))}
@@ -738,28 +763,28 @@ function PortfolioTab({ user }) {
 
       {/* 3. The Ledger */}
       <Card title="Your Holdings">
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col gap-1.5">
           {stocks.map(row => {
             const initials = row.ticker.substring(0, 2).toUpperCase();
             const isUp = row.pnl_pct >= 0;
 
             return (
-              <div key={row.ticker} className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition-colors">
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-xs font-semibold shrink-0
-                  ${isUp ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-600"}`}>
+              <div key={row.ticker} className="flex items-center gap-3 p-3 rounded-xl hover:bg-slate-850/50 transition-all border border-transparent hover:border-slate-800/40">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-xs font-black shrink-0 shadow-sm
+                  ${isUp ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border border-rose-500/20"}`}>
                   {initials}
                 </div>
                 
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-gray-900 truncate">{row.ticker}</div>
-                  <div className="text-xs text-gray-400">
+                  <div className="text-sm font-bold text-slate-200 truncate">{row.ticker}</div>
+                  <div className="text-xs text-slate-400 mt-0.5">
                     {row.shares || '-'} shares · avg ₹{row.buy_price ? row.buy_price.toFixed(2) : '-'} · {row.sector}
                   </div>
                 </div>
                 
                 <div className="text-right shrink-0">
-                  <div className="text-sm font-semibold text-gray-900">₹{row.current_value.toFixed(2)}</div>
-                  <div className={`text-xs font-medium ${isUp ? 'text-emerald-600' : 'text-red-500'}`}>
+                  <div className="text-sm font-bold text-slate-200">₹{row.current_value.toFixed(2)}</div>
+                  <div className={`text-xs font-bold mt-0.5 ${isUp ? 'text-emerald-400' : 'text-rose-400'}`}>
                     {isUp ? '+' : ''}{row.pnl_pct.toFixed(1)}%
                   </div>
                 </div>
@@ -798,44 +823,45 @@ function StockDashboard({ data }) {
         body: JSON.stringify({ ticker, analysis_data: data }),
       });
       const json = await res.json();
-      setAiSummary(json.summary || json.note);
+      setAiSummary(json.summary || json.note || json.error || "AI summary generation failed.");
     } catch { setAiSummary("AI summary unavailable."); }
     finally { setAiLoading(false); }
+
   }
 
   const overallColor =
-    verdict.overall.includes("Strong Buy") ? "bg-emerald-500" :
-    verdict.overall.includes("Moderate")   ? "bg-teal-500" :
-    verdict.overall.includes("Neutral")    ? "bg-gray-400" :
-    verdict.overall.includes("Caution")    ? "bg-amber-500" : "bg-red-500";
+    verdict.overall.includes("Strong Buy") ? "bg-emerald-500 text-white" :
+    verdict.overall.includes("Moderate")   ? "bg-teal-500 text-white" :
+    verdict.overall.includes("Neutral")    ? "bg-slate-700 text-slate-200" :
+    verdict.overall.includes("Caution")    ? "bg-amber-500 text-black" : "bg-rose-500 text-white";
 
   return (
     <div className="space-y-4 animate-in fade-in duration-300">
       {/* Stock Main Header Card */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm">
+      <div className="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-2xl p-6 shadow-xl shadow-black/10">
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">{company_name}</h2>
-            <p className="text-sm text-gray-400 mt-0.5">{ticker} · {fin.sector || "—"} · {fin.industry || "—"}</p>
+            <h2 className="text-2xl font-extrabold text-slate-100">{company_name}</h2>
+            <p className="text-xs text-slate-400 mt-1 font-semibold tracking-wide uppercase">{ticker} · {fin.sector || "—"} · {fin.industry || "—"}</p>
           </div>
           <div className="text-right">
-            <div className="text-3xl font-bold text-gray-900">₹{price.current_price}</div>
-            <div className={`text-sm font-medium mt-0.5 ${changeColor(price.change_1d_pct)}`}>
+            <div className="text-3xl font-extrabold text-slate-100 tracking-tight">₹{price.current_price}</div>
+            <div className={`text-xs font-bold mt-1.5 ${changeColor(price.change_1d_pct)}`}>
               {pct(price.change_1d_pct)} today
             </div>
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2 items-center mt-4 pt-4 border-t border-gray-100">
-          <div className={`inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-white text-xs font-bold ${overallColor} shadow-sm`}>
+        <div className="flex flex-wrap gap-2 items-center mt-5 pt-5 border-t border-slate-800/60">
+          <div className={`inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-black ${overallColor} shadow-md`}>
             {verdict.overall}
           </div>
           <div className="flex gap-1.5 ml-auto">
             {["1D", "1M", "6M", "1Y"].map((label, idx) => {
               const vals = [price.change_1d_pct, price.change_1m_pct, price.change_6m_pct, price.change_1y_pct];
               return (
-                <div key={label} className="text-center px-3 py-1 bg-gray-50 border border-gray-100 rounded-lg">
-                  <span className="text-[10px] text-gray-400 font-semibold block">{label}</span>
+                <div key={label} className="text-center px-3 py-1 bg-slate-950/40 border border-slate-800/40 rounded-xl min-w-[56px]">
+                  <span className="text-[9px] text-slate-500 font-bold uppercase tracking-wider block">{label}</span>
                   <span className={`text-xs font-bold ${changeColor(vals[idx])}`}>{pct(vals[idx])}</span>
                 </div>
               );
@@ -844,16 +870,20 @@ function StockDashboard({ data }) {
         </div>
       </div>
 
+
       {/* Sub-Tab Navigation */}
-      <div className="flex gap-1 bg-gray-100 p-1 rounded-xl">
+      <div className="flex gap-1 bg-slate-950/60 border border-slate-800/40 p-1 rounded-xl">
         {["overview", "financials", "technicals", "ai"].map(t => (
           <button key={t} onClick={() => setSubTab(t)}
-            className={`flex-1 text-xs font-semibold py-2 rounded-lg transition-colors capitalize
-              ${subTab === t ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"}`}>
+            className={`flex-1 text-xs font-bold py-2 rounded-lg transition-all duration-200 capitalize
+              ${subTab === t 
+                ? "bg-slate-800 text-slate-100 shadow-sm border border-slate-700/40" 
+                : "text-slate-500 hover:text-slate-300 border border-transparent"}`}>
             {t === "ai" ? "AI Advisor" : t}
           </button>
         ))}
       </div>
+
 
       {/* Tab Contents */}
       {subTab === "overview" && (
@@ -888,55 +918,71 @@ function StockDashboard({ data }) {
       {subTab === "financials" && (
         <div className="space-y-4 animate-in fade-in duration-200">
           <div className="grid md:grid-cols-2 gap-4">
-            <Card title="Valuation Metrics">
+            <Card title="Valuation: Is the stock cheap or expensive?">
               <div className="grid grid-cols-2 gap-2">
-                <Metric label="P/E (TTM)" value={num(fin.pe_ratio, 1)} sub="Price / Earnings" />
-                <Metric label="Forward P/E" value={num(fin.forward_pe, 1)} />
-                <Metric label="P/B" value={num(fin.pb_ratio, 1)} sub="Price / Book" />
-                <Metric label="EV/EBITDA" value={num(fin.ev_ebitda, 1)} />
-                <Metric label="P/S" value={num(fin.ps_ratio, 1)} />
-                <Metric label="PEG" value={num(fin.peg_ratio, 1)} />
+                <Metric label="Valuation Multiple (P/E)" value={num(fin.pe_ratio, 1)} sub="Stock price compared to its profits. Lower usually means cheaper." />
+                <Metric label="Expected Future P/E" value={num(fin.forward_pe, 1)} sub="Expected valuation multiple for the next fiscal year." />
+                <Metric label="Asset Price Ratio (P/B)" value={num(fin.pb_ratio, 1)} sub="Price compared to net book assets. Important for banks." />
+                <Metric label="Institutional Valuation (EV/EBITDA)" value={num(fin.ev_ebitda, 1)} sub="Standard multiple used by professional acquirers." />
+                <Metric label="Sales Multiple (P/S)" value={num(fin.ps_ratio, 1)} sub="Price relative to total sales. Good for high-growth tech." />
+                <Metric label="Growth-Adjusted P/E (PEG)" value={num(fin.peg_ratio, 1)} sub="Valuation adjusted for growth. Below 1 is excellent." />
               </div>
             </Card>
 
-            <Card title="Profitability Ratios">
+            <Card title="Profitability: How well does the company print money?">
               <div className="grid grid-cols-2 gap-2">
-                <Metric label="ROE" value={fin.roe_pct != null ? `${fin.roe_pct}%` : "—"}
-                  color={fin.roe_pct > 15 ? "text-emerald-600" : fin.roe_pct < 8 ? "text-red-500" : "text-gray-900"} />
-                <Metric label="ROCE" value={fin.roce_pct != null ? `${fin.roce_pct}%` : "—"} />
-                <Metric label="Net Margin" value={fin.net_margin_pct != null ? `${fin.net_margin_pct}%` : "—"} />
-                <Metric label="Op Margin" value={fin.op_margin_pct != null ? `${fin.op_margin_pct}%` : "—"} />
-                <Metric label="Gross Margin" value={fin.gross_margin_pct != null ? `${fin.gross_margin_pct}%` : "—"} />
-                <Metric label="Free Cash Flow" value={cr(fin.free_cashflow_cr)} />
+                <Metric label="Return on Net Assets (ROE)" value={fin.roe_pct != null ? `${fin.roe_pct}%` : "—"}
+                  color={fin.roe_pct > 15 ? "text-emerald-400" : fin.roe_pct < 8 ? "text-rose-400" : "text-slate-100"}
+                  sub="Profit generated using shareholders' money. Above 15% is great." />
+                <Metric label="Capital Efficiency (ROCE)" value={fin.roce_pct != null ? `${fin.roce_pct}%` : "—"}
+                  color={fin.roce_pct > 15 ? "text-emerald-400" : "text-slate-100"}
+                  sub="Profit earned from total capital invested. Higher is better." />
+                <Metric label="Net Profit Margin" value={fin.net_margin_pct != null ? `${fin.net_margin_pct}%` : "—"}
+                  sub="The actual percentage of sales revenue kept as net profit." />
+                <Metric label="Operating Margin" value={fin.op_margin_pct != null ? `${fin.op_margin_pct}%` : "—"}
+                  sub="Core profitability of business operations before tax & debt costs." />
+                <Metric label="Direct Profit Margin" value={fin.gross_margin_pct != null ? `${fin.gross_margin_pct}%` : "—"}
+                  sub="Profitability left after direct cost of goods sold." />
+                <Metric label="Free Cash Flow" value={cr(fin.free_cashflow_cr)}
+                  sub="Actual cash left to spend or pay dividends. Real profit." />
               </div>
             </Card>
           </div>
 
           <div className="grid md:grid-cols-2 gap-4">
-            <Card title="Growth Performance">
+            <Card title="Growth: How fast is the business expanding?">
               <div className="grid grid-cols-2 gap-2">
-                <Metric label="Revenue Growth YoY" value={pct(fin.revenue_growth_yoy_pct)}
-                  color={changeColor(fin.revenue_growth_yoy_pct)} />
-                <Metric label="Profit Growth YoY" value={pct(fin.profit_growth_yoy_pct)}
-                  color={changeColor(fin.profit_growth_yoy_pct)} />
-                <Metric label="EPS" value={fin.eps != null ? `₹${fin.eps.toFixed(2)}` : "—"} />
-                <Metric label="Dividend Yield" value={fin.dividend_yield != null ? `${fin.dividend_yield}%` : "—"} />
+                <Metric label="Yearly Sales Growth" value={pct(fin.revenue_growth_yoy_pct)}
+                  color={changeColor(fin.revenue_growth_yoy_pct)}
+                  sub="Growth in total sales compared to same quarter last year." />
+                <Metric label="Yearly Profit Growth" value={pct(fin.profit_growth_yoy_pct)}
+                  color={changeColor(fin.profit_growth_yoy_pct)}
+                  sub="Growth in net profits compared to same quarter last year." />
+                <Metric label="Earnings Per Share (EPS)" value={fin.eps != null ? `₹${fin.eps.toFixed(2)}` : "—"}
+                  sub="The exact portion of profit allocated to each share of stock." />
+                <Metric label="Dividend Yield" value={fin.dividend_yield != null ? `${fin.dividend_yield}%` : "—"}
+                  sub="Annual dividend return as a percentage of current share price." />
               </div>
             </Card>
 
-            <Card title="Balance Sheet Health">
+            <Card title="Debt & Balance Sheet Safety">
               <div className="grid grid-cols-2 gap-2">
-                <Metric label="Debt / Equity" value={num(fin.debt_to_equity, 2)}
-                  color={fin.debt_to_equity > 1.5 ? "text-red-500" : "text-emerald-600"} />
-                <Metric label="Current Ratio" value={num(fin.current_ratio, 2)}
-                  color={fin.current_ratio > 1 ? "text-emerald-600" : "text-red-500"} />
-                <Metric label="Quick Ratio" value={num(fin.quick_ratio, 2)} />
-                <Metric label="Market Capitalization" value={cr(fin.market_cap_cr)} />
+                <Metric label="Debt to Equity Ratio" value={num(fin.debt_to_equity, 2)}
+                  color={fin.debt_to_equity > 1.5 ? "text-rose-400" : "text-emerald-400"}
+                  sub="Borrowed money vs shareholder capital. Lower than 1.0 is safe." />
+                <Metric label="Short-term Bill Safety" value={num(fin.current_ratio, 2)}
+                  color={fin.current_ratio > 1 ? "text-emerald-400" : "text-rose-400"}
+                  sub="Ability to pay immediate bills. Values above 1.5 are comfortable." />
+                <Metric label="Immediate Cash Safety" value={num(fin.quick_ratio, 2)}
+                  sub="Ability to pay bills using only cash-like quick assets." />
+                <Metric label="Company Market Size" value={cr(fin.market_cap_cr)}
+                  sub="Total current stock market valuation of the entire firm." />
               </div>
             </Card>
           </div>
         </div>
       )}
+
 
       {subTab === "technicals" && (
         <div className="space-y-4 animate-in fade-in duration-200">
@@ -1059,23 +1105,24 @@ function MutualFundTab() {
         <input value={query} onChange={e => setQuery(e.target.value)}
           onKeyDown={e => e.key === "Enter" && search()}
           placeholder="Search MF e.g. HDFC Flexi Cap, Parag Parikh"
-          className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+          className="flex-1 bg-slate-950/50 border border-slate-800/60 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 text-slate-100 placeholder-slate-600 focus:border-teal-500/50 transition-all" />
         <button onClick={search} disabled={loading}
-          className="bg-teal-600 text-white px-5 py-2.5 rounded-xl text-sm font-medium hover:bg-teal-700 disabled:opacity-50">
-          {loading ? "…" : "Search"}
+          className="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md shadow-teal-950/20 transition-all disabled:opacity-50">
+          {loading ? "Searching..." : "Search"}
         </button>
       </div>
 
       {results.length > 0 && (
-        <div className="bg-white border border-gray-200 rounded-xl overflow-hidden mb-4">
+        <div className="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-xl overflow-hidden mb-4 shadow-lg shadow-black/10">
           {results.map(f => (
             <button key={f.scheme_code} onClick={() => loadFund(f.scheme_code)}
-              className="w-full text-left px-4 py-3 border-b border-gray-100 hover:bg-gray-50 text-sm last:border-0">
-              <span className="text-gray-700">{f.scheme_name}</span>
+              className="w-full text-left px-4 py-3 border-b border-slate-800/50 hover:bg-slate-850 text-sm text-slate-300 last:border-0 transition-colors">
+              <span>{f.scheme_name}</span>
             </button>
           ))}
         </div>
       )}
+
 
       {mfData && (
         <div className="space-y-4 animate-in fade-in duration-300">
@@ -1137,88 +1184,128 @@ export default function Page() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white border-b border-gray-200 px-6 py-3.5 sticky top-0 z-10">
-        <div className="max-w-5xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 bg-gradient-to-br from-teal-500 to-teal-700 rounded-lg flex items-center justify-center">
-              <span className="text-white text-xs font-bold">F</span>
+
+    <div className="min-h-screen bg-[#070b13] text-slate-100 flex flex-col md:flex-row font-sans">
+      {/* Sleek Sidebar Navigation */}
+      <aside className="w-full md:w-64 bg-[#0a0f1d] border-b md:border-b-0 md:border-r border-slate-800/80 flex md:flex-col justify-between p-5 shrink-0 z-20 shadow-xl shadow-black/20">
+        <div className="flex md:flex-col gap-6 w-full items-center md:items-stretch">
+          {/* Logo Section */}
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-gradient-to-br from-teal-400 to-cyan-500 rounded-xl flex items-center justify-center shadow-lg shadow-teal-500/20">
+              <span className="text-white text-sm font-black">FC</span>
             </div>
-            <span className="font-bold text-gray-900">FinCopilot</span>
+            <span className="font-extrabold text-lg text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-cyan-400 uppercase tracking-wider">FinCopilot</span>
           </div>
 
-          <div className="flex items-center gap-4">
-            {user ? (
-              <>
-                <span className="text-sm font-medium text-gray-700 hidden sm:block">
-                  Hi, {user.name || user.email.split('@')[0]}
-                </span>
-                <button onClick={async () => {
-                  await fetch(`${API}/api/auth/logout`, { method: "POST" });
-                  localStorage.removeItem("fc_user");
-                  localStorage.removeItem("fc_token");
-                  setUser(null);
-                  setTab("stock");
-                }} className="text-sm font-medium text-gray-500 hover:text-gray-900 transition-colors">
-                  Log out
-                </button>
-              </>
-            ) : (
-              <button onClick={() => setTab("portfolio")} 
-                className="text-sm font-medium text-teal-600 hover:text-teal-700 transition-colors">
-                Log in
+          {/* Desktop Navigation Links */}
+          <div className="hidden md:flex flex-col gap-2 mt-4">
+            {[
+              { id: "stock", label: "Stock Research", icon: "📊" },
+              { id: "mutual_fund", label: "Mutual Funds", icon: "📈" },
+              { id: "portfolio", label: "My Portfolio", icon: "💼" },
+            ].map(t => (
+              <button key={t.id} onClick={() => setTab(t.id)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all duration-200
+                  ${tab === t.id 
+                    ? "bg-gradient-to-r from-teal-500/10 to-cyan-500/10 border border-teal-500/20 text-teal-400 shadow-sm" 
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-900/40 border border-transparent"
+                  }`}>
+                <span className="text-sm">{t.icon}</span>
+                <span>{t.label}</span>
               </button>
-            )}
+            ))}
           </div>
         </div>
-      </nav>
 
-      <div className="max-w-5xl mx-auto px-6 py-8">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">AI Financial Research</h1>
-          <p className="text-gray-500 text-sm">Full stock analysis, mutual funds, and portfolio tracking.</p>
-        </div>
-
-        <div className="flex gap-2 mb-6">
-          {["stock", "mutual_fund", "portfolio"].map(t => (
-            <button key={t} onClick={() => setTab(t)}
-              className={`text-sm px-4 py-1.5 rounded-full border transition-colors ${tab===t ? "bg-teal-600 text-white border-teal-600" : "text-gray-500 border-gray-200 hover:bg-gray-50"}`}>
-              {t === "stock" ? "Stocks" : t === "mutual_fund" ? "Mutual Funds" : "Portfolio"}
+        {/* Mobile Nav Links (visible only on mobile) */}
+        <div className="flex md:hidden gap-1 bg-slate-950/60 p-1 border border-slate-800/40 rounded-xl">
+          {[
+            { id: "stock", label: "Stocks" },
+            { id: "mutual_fund", label: "MFs" },
+            { id: "portfolio", label: "Portfolio" },
+          ].map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={`text-[10px] font-bold px-3 py-1.5 rounded-lg transition-colors
+                ${tab === t.id ? "bg-slate-800 text-slate-100" : "text-slate-400"}`}>
+              {t.label}
             </button>
           ))}
         </div>
 
+        {/* Profile Footer Section */}
+        <div className="hidden md:flex flex-col border-t border-slate-800/60 pt-4 gap-3 mt-auto">
+          {user ? (
+            <div className="flex flex-col gap-2.5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-bold text-teal-400 uppercase">
+                  {user.name ? user.name[0] : user.email[0]}
+                </div>
+                <div className="min-w-0">
+                  <div className="text-xs font-bold text-slate-200 truncate">{user.name || "Investor"}</div>
+                  <div className="text-[10px] text-slate-500 truncate">{user.email}</div>
+                </div>
+              </div>
+              <button onClick={async () => {
+                await fetch(`${API}/api/auth/logout`, { method: "POST" });
+                localStorage.removeItem("fc_user");
+                localStorage.removeItem("fc_token");
+                setUser(null);
+                setTab("stock");
+              }} className="text-[10px] font-bold text-rose-400 hover:text-rose-300 text-left transition-colors flex items-center gap-1.5">
+                <span>🚪</span> Log out
+              </button>
+            </div>
+          ) : (
+            <button onClick={() => setTab("portfolio")} 
+              className="w-full bg-slate-850 hover:bg-slate-800 text-slate-300 text-xs font-bold py-2.5 rounded-xl border border-slate-800 transition-all text-center">
+              Connect Account
+            </button>
+          )}
+        </div>
+      </aside>
+
+      {/* Main Workspace Area */}
+      <main className="flex-1 overflow-y-auto px-6 py-8 md:p-10 w-full max-w-7xl">
+        <div className="flex items-start justify-between gap-4 flex-wrap mb-8 border-b border-slate-800/40 pb-6">
+          <div>
+            <h1 className="text-3xl font-extrabold tracking-tight text-slate-100 bg-clip-text bg-gradient-to-r from-slate-100 to-slate-400 capitalize">
+              {tab === "stock" ? "Stock Terminal" : tab === "mutual_fund" ? "Mutual Funds" : "My Portfolio"}
+            </h1>
+            <p className="text-slate-400 text-xs mt-1">Institutional-grade financial analysis powered by clean data metrics.</p>
+          </div>
+        </div>
+
         {tab === "stock" && (
           <>
-            <div className="bg-white rounded-2xl border border-gray-200 p-5 mb-6">
+            <div className="bg-slate-900/60 backdrop-blur-md rounded-2xl border border-slate-800/80 p-6 mb-6 shadow-lg shadow-black/10">
               <form onSubmit={e => { e.preventDefault(); analyze(); }} className="flex gap-3">
                 <input value={ticker} onChange={e => setTicker(e.target.value.toUpperCase())}
                   placeholder="Enter NSE ticker e.g. RELIANCE, TCS, INFY"
-                  className="flex-1 border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500" />
+                  className="flex-1 bg-slate-950/50 border border-slate-800/60 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 text-slate-100 placeholder-slate-600 focus:border-teal-500/50 transition-all" />
                 <button type="submit" disabled={loading}
-                  className="bg-teal-600 text-white px-6 py-2.5 rounded-xl text-sm font-medium hover:bg-teal-700 disabled:opacity-50 transition-colors">
-                  {loading ? "Analyzing…" : "Analyze →"}
+                  className="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white px-6 py-3 rounded-xl text-sm font-bold shadow-md shadow-teal-950/20 transition-all disabled:opacity-50">
+                  {loading ? "Analyzing..." : "Analyze →"}
                 </button>
               </form>
-              <div className="mt-3 flex gap-x-3 gap-y-1 flex-wrap items-center">
-                <span className="text-xs text-gray-400">Try:</span>
+              <div className="mt-4 flex gap-x-3 gap-y-1 flex-wrap items-center">
+                <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Try:</span>
                 {popular.map(s => (
                   <button key={s} onClick={() => { setTicker(s); analyze(s); }}
-                    className="text-xs text-teal-600 hover:text-teal-800 hover:underline font-medium">
+                    className="text-xs text-teal-400 hover:text-teal-300 font-bold transition-colors">
                     {s}
                   </button>
                 ))}
               </div>
             </div>
 
-            {error && <div className="bg-red-50 border border-red-200 text-red-700 rounded-xl px-4 py-3 mb-4 text-sm">⚠ {error}</div>}
+            {error && <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 rounded-xl px-4 py-3 mb-4 text-sm font-medium">⚠ {error}</div>}
 
             {loading && (
-              <div className="bg-white border border-gray-200 rounded-2xl p-12 text-center">
+              <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl p-12 text-center shadow-lg shadow-black/10">
                 <div className="flex justify-center mb-4">
-                  <div className="w-8 h-8 border-2 border-teal-600 border-t-transparent rounded-full animate-spin" />
+                  <div className="w-8 h-8 border-2 border-teal-500 border-t-transparent rounded-full animate-spin" />
                 </div>
-                <p className="text-sm font-medium text-gray-700">Fetching live data and running analysis…</p>
+                <p className="text-sm font-bold text-slate-300">Fetching live financials and computing indicators...</p>
               </div>
             )}
 
@@ -1230,7 +1317,7 @@ export default function Page() {
 
         {tab === "portfolio" && (
           !user ? (
-            <div className="mt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
               <LoginScreen onLogin={setUser} />
             </div>
           ) : (
@@ -1238,10 +1325,10 @@ export default function Page() {
           )
         )}
         
-        <p className="text-xs text-gray-400 text-center mt-10">
+        <p className="text-[10px] text-slate-600 text-center mt-12 leading-relaxed">
           For informational purposes only. Not investment advice. Consult a SEBI-registered advisor.
         </p>
-      </div>
+      </main>
     </div>
   );
 }

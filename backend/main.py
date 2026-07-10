@@ -89,9 +89,29 @@ def get_current_user(authorization: str = Header(None)) -> dict:
     except Exception as e:
         raise HTTPException(status_code=401, detail=f"Invalid or expired token: {str(e)}")
 
+import math
+import numpy as np
+
+def clean_nans(data):
+    if isinstance(data, dict):
+        return {k: clean_nans(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [clean_nans(v) for v in data]
+    elif isinstance(data, float):
+        if math.isnan(data) or math.isinf(data):
+            return None
+        return data
+    elif isinstance(data, np.generic):
+        val = data.item()
+        if isinstance(val, float) and (math.isnan(val) or math.isinf(val)):
+            return None
+        return val
+    else:
+        return data
 
 
 # ── Routes ──────────────────────────────────────────────────────────────────
+
 
 @app.get("/")
 def root():
@@ -114,11 +134,12 @@ def analyze_stock(req: TickerRequest):
         result = full_stock_analysis(ticker)
         if "error" in result:
             raise HTTPException(400, result["error"])
-        return {"success": True, "data": result}
+        return clean_nans({"success": True, "data": result})
     except HTTPException:
         raise
     except Exception as e:
         raise HTTPException(500, str(e))
+
 
 
 @app.get("/api/stock/price/{ticker}")
@@ -130,9 +151,10 @@ def get_price(ticker: str):
     if "." not in ticker:
         ticker += ".NS"
     try:
-        return {"success": True, "data": get_price_data(ticker)}
+        return clean_nans({"success": True, "data": get_price_data(ticker)})
     except Exception as e:
         raise HTTPException(500, str(e))
+
 
 
 @app.post("/api/mf/search")
@@ -219,8 +241,7 @@ def summarize_with_ai(req: SummarizeRequest):
     try:
         import google.generativeai as genai
         genai.configure(api_key=gemini_key)
-        model = genai.GenerativeModel("gemini-1.5-flash")
-
+        # Build prompt first
         d = req.analysis_data
         verdict = d.get("verdict", {})
         fin = d.get("fundamentals", {})
@@ -243,11 +264,34 @@ Warnings: {', '.join(verdict.get('warnings', [])[:3])}
 
 3 sentences only. End with what type of investor this suits."""
 
-        response = model.generate_content(prompt)
-        return {"success": True, "summary": response.text.strip()}
+        response = None
+        # Try different models in sequence
+        for model_name in ["gemini-1.5-flash", "gemini-pro"]:
+            try:
+                model = genai.GenerativeModel(model_name)
+                response = model.generate_content(prompt)
+                break
+            except Exception:
+                continue
 
+        if not response:
+            try:
+                # Dynamic fallback: find first model supporting generateContent
+                available = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+                if available:
+                    model_name = available[0].replace("models/", "")
+                    model = genai.GenerativeModel(model_name)
+                    response = model.generate_content(prompt)
+            except Exception as e:
+                return {"success": True, "summary": None, "note": f"AI unavailable: {str(e)}"}
+
+        if response and hasattr(response, 'text'):
+            return {"success": True, "summary": response.text.strip()}
+        else:
+            return {"success": True, "summary": None, "note": "Failed to generate summary content."}
     except Exception as e:
-        return {"success": True, "summary": None, "error": str(e)}
+        return {"success": True, "summary": None, "note": f"AI error: {str(e)}"}
+
 
 
 @app.post("/api/portfolio/upload")
@@ -288,11 +332,14 @@ async def upload_csv(file: UploadFile = File(...), current_user = Depends(get_cu
                 try:
                     hist = yf.Ticker(s).history(period="5d")
                     if not hist.empty:
-                        current_price = float(hist["Close"].iloc[-1])
-                        query_sym = s
-                        break
+                        hist = hist.dropna(subset=["Close"])
+                        if not hist.empty:
+                            current_price = float(hist["Close"].iloc[-1])
+                            query_sym = s
+                            break
                 except Exception:
                     continue
+
 
             # 2. Fetch Deep Analytics (Sectors, P/E, Piotroski)
             fund = {}
@@ -373,7 +420,7 @@ async def upload_csv(file: UploadFile = File(...), current_user = Depends(get_cu
         except Exception as e:
             print(f"Failed to save snapshot: {e}") # Fails silently so it doesn't break the upload
         
-        return {
+        return clean_nans({
             "success": True, 
             "data": {
                 "stocks": results,
@@ -383,9 +430,10 @@ async def upload_csv(file: UploadFile = File(...), current_user = Depends(get_cu
                     "sectors": sector_allocations
                 }
             }
-        }
+        })
     except Exception as e:
         raise HTTPException(500, f"Error processing CSV: {str(e)}")
+
 
 @app.get("/api/portfolio/history")
 def get_portfolio_history(current_user = Depends(get_current_user)):
@@ -398,9 +446,10 @@ def get_portfolio_history(current_user = Depends(get_current_user)):
                    .order("snapshot_date", desc=False)\
                    .limit(90).execute()
         
-        return {"success": True, "data": result.data or []}
+        return clean_nans({"success": True, "data": result.data or []})
     except Exception as e:
         raise HTTPException(500, str(e))
+
 
 @app.post("/api/portfolio/broker/login/{broker_name}")
 def get_broker_login_url(broker_name: str, req: BrokerLoginRequest, current_user = Depends(get_current_user)):
@@ -437,11 +486,14 @@ async def get_broker_holdings(broker_name: str, req: BrokerCallbackRequest, curr
                 try:
                     hist = yf.Ticker(s).history(period="5d")
                     if not hist.empty:
-                        current_price = float(hist["Close"].iloc[-1])
-                        query_sym = s
-                        break
+                        hist = hist.dropna(subset=["Close"])
+                        if not hist.empty:
+                            current_price = float(hist["Close"].iloc[-1])
+                            query_sym = s
+                            break
                 except Exception:
                     continue
+
 
             # Fetch fundamentals & piotroski
             fund = {}
@@ -515,7 +567,7 @@ async def get_broker_holdings(broker_name: str, req: BrokerCallbackRequest, curr
         except Exception as e:
             print(f"Failed to save snapshot: {e}")
 
-        return {
+        return clean_nans({
             "success": True, 
             "data": {
                 "stocks": results,
@@ -525,6 +577,6 @@ async def get_broker_holdings(broker_name: str, req: BrokerCallbackRequest, curr
                     "sectors": sector_allocations
                 }
             }
-        }
+        })
     except Exception as e:
         raise HTTPException(500, f"Error linking broker: {str(e)}")
