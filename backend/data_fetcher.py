@@ -251,63 +251,12 @@ def get_fundamentals(ticker: str) -> dict:
     op_margin = screener_data.get("opm_margin")
     net_margin = screener_data.get("net_margin")
 
-    # Parse and extract latest sales and borrowings for P/S and EV/EBITDA calculations
-    latest_sales = None
-    latest_borrowings = 0
-    other_assets = 0
-    other_liabilities = 0
-    
-    try:
-        # We need to find the tables again from BeautifulSoup or just parse from screener_data
-        # Actually, let's extract them from the tables if we re-parse here
-        # To avoid duplicating parsing code, let's just parse the tables directly here
-        import urllib.parse
-        clean_ticker = ticker.replace('.NS', '').replace('.BO', '')
-        url = f"https://www.screener.in/company/{clean_ticker}/consolidated/"
-        headers = {"User-Agent": "Mozilla/5.0"}
-        res = requests.get(url, headers=headers, timeout=8)
-        if res.status_code != 200:
-            url = f"https://www.screener.in/company/{clean_ticker}/"
-            res = requests.get(url, headers=headers, timeout=8)
-            
-        if res.status_code == 200:
-            soup_local = BeautifulSoup(res.text, 'html.parser')
-            tables_local = soup_local.find_all('table')
-            
-            def clean_lbl(t):
-                return t.replace('\xa0', ' ').replace('+', '').strip().lower()
+    # Retrieve parsed table values directly from screener_data
+    latest_sales = screener_data.get("latest_sales")
+    latest_borrowings = screener_data.get("latest_borrowings", 0)
+    other_assets = screener_data.get("other_assets", 0)
+    other_liabilities = screener_data.get("other_liabilities", 0)
 
-            def find_row(table, lbl):
-                for tr in table.find_all('tr'):
-                    tds = [td.text.strip() for td in tr.find_all('td')]
-                    if tds and clean_lbl(tds[0]).startswith(lbl.lower()):
-                        vals = []
-                        for val in tds[1:]:
-                            clean_val = val.replace(',', '').replace('%', '').strip()
-                            try:
-                                vals.append(float(clean_val))
-                            except ValueError:
-                                vals.append(None)
-                        return vals
-                return []
-
-            for t in tables_local:
-                headers_lbl = [th.text.strip() for th in t.find_all('th')]
-                if len(headers_lbl) > 1 and ("Mar" in headers_lbl[1] or "Dec" in headers_lbl[1]):
-                    sales_row = find_row(t, "sales")
-                    if sales_row:
-                        latest_sales = next((x for x in reversed(sales_row) if x is not None), None)
-                    borrowings_row = find_row(t, "borrowings")
-                    if borrowings_row:
-                        latest_borrowings = next((x for x in reversed(borrowings_row) if x is not None), 0)
-                    assets_row = find_row(t, "other assets")
-                    if assets_row:
-                        other_assets = next((x for x in reversed(assets_row) if x is not None), 0)
-                    liab_row = find_row(t, "other liabilities")
-                    if liab_row:
-                        other_liabilities = next((x for x in reversed(liab_row) if x is not None), 0)
-    except Exception:
-        pass
 
     # P/S Ratio fallback math
     ps_ratio = get_metric("Price to Sales", "priceToSalesTrailing12Months")

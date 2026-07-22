@@ -95,6 +95,8 @@ def get_screener_fundamentals(ticker: str) -> dict:
                 if sales_row and net_profit_row:
                     latest_sales = next((x for x in reversed(sales_row) if x is not None), None)
                     latest_profit = next((x for x in reversed(net_profit_row) if x is not None), None)
+                    if latest_sales is not None:
+                        metrics["latest_sales"] = latest_sales
                     if latest_sales and latest_profit:
                         metrics["net_margin"] = round((latest_profit / latest_sales) * 100, 2)
 
@@ -105,14 +107,23 @@ def get_screener_fundamentals(ticker: str) -> dict:
                 borrowings = find_row_in_table(table, "borrowings")
                 reserves = find_row_in_table(table, "reserves")
                 share_capital = find_row_in_table(table, "equity capital") or find_row_in_table(table, "share capital")
+                other_assets_row = find_row_in_table(table, "other assets")
+                other_liab_row = find_row_in_table(table, "other liabilities")
                 
+                if other_assets_row:
+                    metrics["other_assets"] = next((x for x in reversed(other_assets_row) if x is not None), 0)
+                if other_liab_row:
+                    metrics["other_liabilities"] = next((x for x in reversed(other_liab_row) if x is not None), 0)
+
                 if borrowings and reserves and share_capital:
                     latest_borrowings = next((x for x in reversed(borrowings) if x is not None), 0)
                     latest_reserves = next((x for x in reversed(reserves) if x is not None), 0)
                     latest_capital = next((x for x in reversed(share_capital) if x is not None), 0)
+                    metrics["latest_borrowings"] = latest_borrowings
                     equity = latest_reserves + latest_capital
                     if equity > 0:
                         metrics["debt_to_equity"] = round(latest_borrowings / equity, 2)
+
 
         # 6. Parse Free Cash Flow Table (Table 7)
         for table in tables:
