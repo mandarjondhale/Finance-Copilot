@@ -1090,6 +1090,85 @@ function MutualFundTab() {
   const [mfData, setMfData]     = useState(null);
   const [loading, setLoading]   = useState(false);
 
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 200);
+    return () => clearTimeout(handler);
+  }, [query]);
+
+  useEffect(() => {
+    if (debouncedQuery.trim().length >= 2) {
+      if (mfData && mfData.scheme_name.toLowerCase() === debouncedQuery.toLowerCase()) {
+        setResults([]);
+        setShowSuggestions(false);
+        return;
+      }
+      
+      const fetchSuggestions = async () => {
+        try {
+          const res = await fetch(`${API}/api/mf/search`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ query: debouncedQuery }),
+          });
+          if (res.ok) {
+            const json = await res.json();
+            setResults(json.data || []);
+            setShowSuggestions(true);
+            setActiveSuggestionIndex(0);
+          }
+        } catch (e) {
+          console.error("Error searching MF:", e);
+        }
+      };
+      fetchSuggestions();
+    } else {
+      setResults([]);
+      setShowSuggestions(false);
+    }
+  }, [debouncedQuery]);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const selectFund = (fund) => {
+    setQuery(fund.scheme_name);
+    setDebouncedQuery(fund.scheme_name);
+    setResults([]);
+    setShowSuggestions(false);
+    loadFund(fund.scheme_code);
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveSuggestionIndex(prev => Math.min(prev + 1, results.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveSuggestionIndex(prev => Math.max(prev - 1, 0));
+    } else if (e.key === "Enter") {
+      if (showSuggestions && results[activeSuggestionIndex]) {
+        e.preventDefault();
+        selectFund(results[activeSuggestionIndex]);
+      }
+    } else if (e.key === "Escape") {
+      setShowSuggestions(false);
+    }
+  };
+
   async function search() {
     if (!query.trim()) return;
     setLoading(true);
@@ -1101,6 +1180,7 @@ function MutualFundTab() {
       });
       const json = await res.json();
       setResults(json.data || []);
+      setShowSuggestions(true);
     } finally { setLoading(false); }
   }
 
@@ -1115,32 +1195,47 @@ function MutualFundTab() {
       const json = await res.json();
       setMfData(json.data);
       setResults([]);
+      setShowSuggestions(false);
     } finally { setLoading(false); }
   }
 
   return (
-    <div>
+    <div ref={containerRef} className="relative">
       <div className="flex gap-3 mb-4">
-        <input value={query} onChange={e => setQuery(e.target.value)}
-          onKeyDown={e => e.key === "Enter" && search()}
+        <input value={query} 
+          onChange={e => setQuery(e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder="Search MF e.g. HDFC Flexi Cap, Parag Parikh"
           className="flex-1 bg-slate-950/50 border border-slate-800/60 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 text-slate-100 placeholder-slate-600 focus:border-teal-500/50 transition-all" />
-        <button onClick={search} disabled={loading}
+        <button onClick={() => search()} disabled={loading}
           className="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md shadow-teal-950/20 transition-all disabled:opacity-50">
           {loading ? "Searching..." : "Search"}
         </button>
       </div>
 
-      {results.length > 0 && (
-        <div className="bg-slate-900/60 backdrop-blur-md border border-slate-800/80 rounded-xl overflow-hidden mb-4 shadow-lg shadow-black/10">
-          {results.map(f => (
-            <button key={f.scheme_code} onClick={() => loadFund(f.scheme_code)}
-              className="w-full text-left px-4 py-3 border-b border-slate-800/50 hover:bg-slate-850 text-sm text-slate-300 last:border-0 transition-colors">
-              <span>{f.scheme_name}</span>
-            </button>
-          ))}
+      {showSuggestions && (query.trim().length >= 2) && (
+        <div className="absolute left-0 right-0 top-[48px] mt-1 bg-[#0b101d]/95 backdrop-blur-lg border border-slate-800/90 rounded-xl shadow-2xl shadow-black/60 overflow-hidden z-50 max-h-[300px] overflow-y-auto">
+          {results.length > 0 ? (
+            results.map((f, index) => (
+              <button key={f.scheme_code} 
+                onClick={() => selectFund(f)}
+                className={`w-full text-left px-4 py-3 border-b border-slate-800/40 hover:bg-slate-850 text-xs last:border-0 transition-colors block
+                  ${index === activeSuggestionIndex 
+                    ? "bg-slate-800/90 text-teal-300" 
+                    : "text-slate-300"
+                  }`}
+              >
+                <span>{f.scheme_name}</span>
+              </button>
+            ))
+          ) : (
+            <div className="px-4 py-3.5 text-center text-xs font-bold text-slate-500">
+              No matching mutual fund found.
+            </div>
+          )}
         </div>
       )}
+
 
 
       {mfData && (
@@ -1200,23 +1295,53 @@ export default function Page() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handleInputChange = (e) => {
-    const val = e.target.value;
-    setTicker(val);
-    
-    if (val.trim().length >= 1) {
-      const filtered = nseEquities.filter(item => 
-        item.symbol.toLowerCase().includes(val.toLowerCase()) ||
-        item.name.toLowerCase().includes(val.toLowerCase())
-      ).slice(0, 8);
+  const [debouncedTicker, setDebouncedTicker] = useState("");
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedTicker(ticker);
+    }, 200);
+    return () => clearTimeout(handler);
+  }, [ticker]);
+
+  useEffect(() => {
+    if (debouncedTicker.trim().length >= 2) {
+      if (result && result.ticker.replace(".NS", "") === debouncedTicker.trim().toUpperCase()) {
+        setSuggestions([]);
+        setShowSuggestions(false);
+        return;
+      }
       
-      setSuggestions(filtered);
-      setShowSuggestions(true);
-      setActiveSuggestionIndex(0);
+      const fetchSuggestions = async () => {
+        try {
+          const res = await fetch(`${API}/api/search/symbols?q=${encodeURIComponent(debouncedTicker)}`);
+          if (res.ok) {
+            const data = await res.json();
+            setSuggestions(data);
+            setShowSuggestions(true);
+            setActiveSuggestionIndex(0);
+          }
+        } catch (e) {
+          console.error("Error fetching suggestions:", e);
+        }
+      };
+      fetchSuggestions();
     } else {
       setSuggestions([]);
       setShowSuggestions(false);
     }
+  }, [debouncedTicker]);
+
+  const selectSuggestion = (symbol) => {
+    setTicker(symbol);
+    setDebouncedTicker(symbol);
+    setSuggestions([]);
+    setShowSuggestions(false);
+    analyze(symbol);
+  };
+
+  const handleInputChange = (e) => {
+    setTicker(e.target.value);
   };
 
   const handleKeyDown = (e) => {
@@ -1229,15 +1354,13 @@ export default function Page() {
     } else if (e.key === "Enter") {
       if (showSuggestions && suggestions[activeSuggestionIndex]) {
         e.preventDefault();
-        const selected = suggestions[activeSuggestionIndex].symbol;
-        setTicker(selected);
-        setShowSuggestions(false);
-        analyze(selected);
+        selectSuggestion(suggestions[activeSuggestionIndex].symbol);
       }
     } else if (e.key === "Escape") {
       setShowSuggestions(false);
     }
   };
+
 
 
   async function analyze(t) {
@@ -1364,31 +1487,34 @@ export default function Page() {
                 </button>
               </form>
 
-              {showSuggestions && suggestions.length > 0 && (
+              {showSuggestions && (ticker.trim().length >= 2) && (
                 <div className="absolute left-6 right-6 top-[78px] mt-1 bg-[#0b101d]/95 backdrop-blur-lg border border-slate-800/90 rounded-xl shadow-2xl shadow-black/60 overflow-hidden z-50">
-                  {suggestions.map((item, index) => (
-                    <button
-                      key={item.symbol}
-                      onClick={() => {
-                        setTicker(item.symbol);
-                        setShowSuggestions(false);
-                        analyze(item.symbol);
-                      }}
-                      className={`w-full text-left px-4 py-3 flex justify-between items-center transition-colors border-b border-slate-800/40 last:border-0
-                        ${index === activeSuggestionIndex 
-                          ? "bg-slate-800/90 text-teal-300" 
-                          : "text-slate-300 hover:bg-slate-850 hover:text-slate-200"
-                        }`}
-                    >
-                      <div className="flex flex-col">
-                        <span className="text-xs font-black tracking-wider uppercase">{item.symbol}</span>
-                        <span className="text-[10px] text-slate-500 font-semibold">{item.name}</span>
-                      </div>
-                      <span className="text-[10px] bg-teal-500/10 text-teal-400 font-black px-2 py-0.5 rounded border border-teal-500/10 uppercase tracking-widest">NSE</span>
-                    </button>
-                  ))}
+                  {suggestions.length > 0 ? (
+                    suggestions.map((item, index) => (
+                      <button
+                        key={item.symbol}
+                        onClick={() => selectSuggestion(item.symbol)}
+                        className={`w-full text-left px-4 py-3 flex justify-between items-center transition-colors border-b border-slate-800/40 last:border-0
+                          ${index === activeSuggestionIndex 
+                            ? "bg-slate-800/90 text-teal-300" 
+                            : "text-slate-300 hover:bg-slate-850 hover:text-slate-200"
+                          }`}
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-xs font-black tracking-wider uppercase">{item.symbol}</span>
+                          <span className="text-[10px] text-slate-500 font-semibold">{item.name}</span>
+                        </div>
+                        <span className="text-[10px] bg-teal-500/10 text-teal-400 font-black px-2 py-0.5 rounded border border-teal-500/10 uppercase tracking-widest">{item.exchange}</span>
+                      </button>
+                    ))
+                  ) : (
+                    <div className="px-4 py-3.5 text-center text-xs font-bold text-slate-500">
+                      No matching company found.
+                    </div>
+                  )}
                 </div>
               )}
+
 
               <div className="mt-4 flex gap-x-3 gap-y-1 flex-wrap items-center">
                 <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Try:</span>

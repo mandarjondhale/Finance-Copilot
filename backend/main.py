@@ -8,9 +8,12 @@ a natural language paragraph. The app works 100% without it.
 
 import os
 import io
+import csv
+import json
+import urllib.request
 import pandas as pd
 import yfinance as yf
-from datetime import date
+from datetime import date, datetime, timedelta
 from supabase import create_client, Client
 from dotenv import load_dotenv
 
@@ -47,6 +50,72 @@ app.add_middleware(
 )
 
 
+nse_list = []
+
+def download_nse_list():
+    global nse_list
+    url = "https://archives.nseindia.com/content/equities/EQUITY_L.csv"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+    }
+    req = urllib.request.Request(url, headers=headers)
+    
+    print("Downloading active NSE equities CSV...")
+    try:
+        with urllib.request.urlopen(req, timeout=15) as response:
+            csv_data = response.read().decode('utf-8')
+            
+        csv_file = io.StringIO(csv_data)
+        reader = csv.DictReader(csv_file)
+        
+        temp_list = []
+        for row in reader:
+            symbol = row.get("SYMBOL")
+            name = row.get("NAME OF COMPANY")
+            if symbol and name:
+                temp_list.append({
+                    "symbol": symbol.strip(),
+                    "name": name.strip()
+                })
+                
+        if temp_list:
+            nse_list = temp_list
+            with open("nse_equities.json", "w", encoding="utf-8") as f:
+                json.dump(nse_list, f, indent=2)
+            print(f"Downloaded and saved {len(nse_list)} active NSE equities.")
+    except Exception as e:
+        print(f"Error downloading or parsing EQUITY_L.csv: {e}")
+        if not nse_list:
+            # Fallback mock list if file is completely missing
+            nse_list = [
+                {"symbol": "RELIANCE", "name": "RELIANCE INDUSTRIES LTD"},
+                {"symbol": "TCS", "name": "TATA CONSULTANCY SERVICES LTD"},
+                {"symbol": "INFY", "name": "INFOSYS LTD"},
+                {"symbol": "HDFCBANK", "name": "HDFC BANK LTD"},
+                {"symbol": "ITC", "name": "ITC LTD"},
+                {"symbol": "WIPRO", "name": "WIPRO LTD"},
+                {"symbol": "BAJFINANCE", "name": "BAJAJ FINANCE LTD"},
+                {"symbol": "TATAMOTORS", "name": "TATA MOTORS LTD"},
+                {"symbol": "ASIANPAINT", "name": "ASIAN PAINTS LTD"},
+                {"symbol": "SUNPHARMA", "name": "SUN PHARMACEUTICAL INDUSTRIES LTD"}
+            ]
+
+def load_nse_list():
+    global nse_list
+    json_path = "nse_equities.json"
+    if os.path.exists(json_path):
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                nse_list = json.load(f)
+            print(f"Loaded {len(nse_list)} equities from nse_equities.json")
+            return
+        except Exception as e:
+            print(f"Error reading nse_equities.json: {e}")
+            
+    # Try downloading if missing
+    download_nse_list()
+
+
 async def prewarm_cache_loop():
     popular_tickers = [
         "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS", "ITC.NS", 
@@ -77,9 +146,23 @@ async def prewarm_cache_loop():
         await asyncio.sleep(240)
 
 
+async def weekly_nse_downloader_loop():
+    # Sleep 1 day initially to avoid immediately redownloading on startup
+    await asyncio.sleep(86400)
+    while True:
+        try:
+            download_nse_list()
+        except Exception as e:
+            print(f"Error in weekly NSE downloader loop: {e}")
+        await asyncio.sleep(7 * 86400)
+
+
 @app.on_event("startup")
 async def on_startup():
+    load_nse_list()
     asyncio.create_task(prewarm_cache_loop())
+    asyncio.create_task(weekly_nse_downloader_loop())
+
 
 
 
@@ -198,7 +281,74 @@ async def analyze_stock(req: TickerRequest):
 
 
 
+@app.get("/api/search/symbols")
+def search_symbols(q: str = "", limit: int = 8):
+    """
+    Search symbols and names case-insensitive using prefix match first, then fuzzy fallback.
+    Scored and sorted by match relevance.
+    """
+    if len(q.strip()) < 2:
+        return []
+        
+    query = q.lower().strip()
+    scored_items = []
+    
+    for item in nse_list:
+        symbol = item["symbol"].lower()
+        name = item["name"].lower()
+        
+        best_tier_score = 0
+        
+        # Tier 1: Exact symbol match
+        if symbol == query:
+            best_tier_score = max(best_tier_score, 10000 - len(symbol))
+        # Tier 2: Symbol starts with query
+        elif symbol.startswith(query):
+            best_tier_score = max(best_tier_score, 8000 - len(symbol))
+            
+        # Tier 3 & 4: Name words start with query
+        words = name.split()
+        if words:
+            if words[0].startswith(query):
+                best_tier_score = max(best_tier_score, 6000 - len(words[0]))
+            else:
+                for idx, word in enumerate(words[1:]):
+                    if word.startswith(query):
+                        best_tier_score = max(best_tier_score, 4000 - idx - len(word))
+                        break
+                        
+        # Tier 5: Symbol contains query
+        if query in symbol:
+            best_tier_score = max(best_tier_score, 2000 - len(symbol))
+            
+        # Tier 6: Name contains query
+        if query in name:
+            best_tier_score = max(best_tier_score, 1000 - len(name))
+            
+        if best_tier_score > 0:
+            scored_items.append((best_tier_score, item))
+            
+    # Sort by score descending
+    scored_items.sort(key=lambda x: x[0], reverse=True)
+    
+    result = []
+    seen = set()
+    for score, item in scored_items:
+        if item["symbol"] not in seen:
+            seen.add(item["symbol"])
+            result.append({
+                "symbol": item["symbol"],
+                "name": item["name"],
+                "exchange": "NSE"
+            })
+            
+    return result[:limit]
+
+
+
+
 @app.get("/api/stock/price/{ticker}")
+
 def get_price(ticker: str):
     """
     Just price data — instant, no LLM, great for live refresh.
