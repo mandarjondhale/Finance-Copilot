@@ -242,7 +242,14 @@ def get_fundamentals(ticker: str) -> dict:
 
     # 2. Helper function: Prefer Screener data, fallback to yfinance if missing
     def get_metric(screener_key, yf_key, default=None):
-        return screener_data.get(screener_key, info.get(yf_key, default))
+        return screener_data.get(screener_key.lower(), info.get(yf_key, default))
+
+    # P/B fallback calculation
+    pb_ratio = get_metric("Price to book value", "priceToBook") or screener_data.get("pb_ratio_calculated")
+
+    # Margin fallbacks
+    op_margin = screener_data.get("opm_margin")
+    net_margin = screener_data.get("net_margin")
 
     return {
         "company_name":  info.get("longName", ticker),
@@ -254,7 +261,7 @@ def get_fundamentals(ticker: str) -> dict:
         # --- MERGED METRICS ---
         "market_cap_cr": get_metric("Market Cap", "marketCap"),
         "pe_ratio":      get_metric("Stock P/E", "trailingPE"),
-        "pb_ratio":      get_metric("Price to book value", "priceToBook"),
+        "pb_ratio":      pb_ratio,
         "roe_pct":       get_metric("ROE", "returnOnEquity"),
         "dividend_yield":get_metric("Dividend Yield", "dividendYield"),
         "book_value":    get_metric("Book Value", "bookValue"),
@@ -267,30 +274,31 @@ def get_fundamentals(ticker: str) -> dict:
         "ev_ebitda":     info.get("enterpriseToEbitda"),
         "roa_pct":          round(info.get("returnOnAssets", 0) * 100, 2) if info.get("returnOnAssets") else None,
         "gross_margin_pct": round(info.get("grossMargins", 0) * 100, 2) if info.get("grossMargins") else None,
-        "op_margin_pct":    round(info.get("operatingMargins", 0) * 100, 2) if info.get("operatingMargins") else None,
-        "net_margin_pct":   round(info.get("profitMargins", 0) * 100, 2) if info.get("profitMargins") else None,
+        "op_margin_pct":    op_margin if op_margin is not None else (round(info.get("operatingMargins", 0) * 100, 2) if info.get("operatingMargins") else None),
+        "net_margin_pct":   net_margin if net_margin is not None else (round(info.get("profitMargins", 0) * 100, 2) if info.get("profitMargins") else None),
 
         # Growth
-        "revenue_growth_yoy_pct": revenue_growth_yoy,
-        "profit_growth_yoy_pct":  profit_growth_yoy,
+        "revenue_growth_yoy_pct": screener_data.get("sales_growth_yoy") or revenue_growth_yoy,
+        "profit_growth_yoy_pct":  screener_data.get("profit_growth_yoy") or profit_growth_yoy,
         "earnings_growth_pct":    round(info.get("earningsGrowth", 0) * 100, 2) if info.get("earningsGrowth") else None,
 
         # Balance sheet health
-        "debt_to_equity":     info.get("debtToEquity"),
+        "debt_to_equity":     screener_data.get("debt_to_equity") or info.get("debtToEquity"),
         "current_ratio":      info.get("currentRatio"),
         "quick_ratio":        info.get("quickRatio"),
         "interest_coverage":  None,  
 
         # Per share
-        "eps":            info.get("trailingEps"),
+        "eps":            screener_data.get("eps") or info.get("trailingEps"),
 
         # Cash flow
-        "free_cashflow_cr": fcf,
+        "free_cashflow_cr": screener_data.get("free_cash_flow") or fcf,
 
         # Trends (for charts)
         "revenue_trend_cr": revenue_trend,
         "profit_trend_cr":  profit_trend,
     }
+
 
 
 # ─────────────────────────────────────────────────────────────────────────────
