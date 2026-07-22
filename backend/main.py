@@ -35,15 +35,13 @@ app = FastAPI(title="FinCopilot API", version="3.0.0")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "https://fincopilot-app.vercel.app",
-        "https://finance-copilot.vercel.app"
-    ],
+    allow_origins=["http://localhost:3000"],
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 
 
