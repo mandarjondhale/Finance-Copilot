@@ -10,6 +10,7 @@ pydantic==2.9.2
 beautifulsoup4==4.12.3
 supabase
 kiteconnect
+python-multipart
 
 # Optional — only needed if you use /api/stock/summarize
 google-generativeai==0.8.3
