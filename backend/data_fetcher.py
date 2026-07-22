@@ -251,6 +251,103 @@ def get_fundamentals(ticker: str) -> dict:
     op_margin = screener_data.get("opm_margin")
     net_margin = screener_data.get("net_margin")
 
+    # Parse and extract latest sales and borrowings for P/S and EV/EBITDA calculations
+    latest_sales = None
+    latest_borrowings = 0
+    other_assets = 0
+    other_liabilities = 0
+    
+    try:
+        # We need to find the tables again from BeautifulSoup or just parse from screener_data
+        # Actually, let's extract them from the tables if we re-parse here
+        # To avoid duplicating parsing code, let's just parse the tables directly here
+        import urllib.parse
+        clean_ticker = ticker.replace('.NS', '').replace('.BO', '')
+        url = f"https://www.screener.in/company/{clean_ticker}/consolidated/"
+        headers = {"User-Agent": "Mozilla/5.0"}
+        res = requests.get(url, headers=headers, timeout=8)
+        if res.status_code != 200:
+            url = f"https://www.screener.in/company/{clean_ticker}/"
+            res = requests.get(url, headers=headers, timeout=8)
+            
+        if res.status_code == 200:
+            soup_local = BeautifulSoup(res.text, 'html.parser')
+            tables_local = soup_local.find_all('table')
+            
+            def clean_lbl(t):
+                return t.replace('\xa0', ' ').replace('+', '').strip().lower()
+
+            def find_row(table, lbl):
+                for tr in table.find_all('tr'):
+                    tds = [td.text.strip() for td in tr.find_all('td')]
+                    if tds and clean_lbl(tds[0]).startswith(lbl.lower()):
+                        vals = []
+                        for val in tds[1:]:
+                            clean_val = val.replace(',', '').replace('%', '').strip()
+                            try:
+                                vals.append(float(clean_val))
+                            except ValueError:
+                                vals.append(None)
+                        return vals
+                return []
+
+            for t in tables_local:
+                headers_lbl = [th.text.strip() for th in t.find_all('th')]
+                if len(headers_lbl) > 1 and ("Mar" in headers_lbl[1] or "Dec" in headers_lbl[1]):
+                    sales_row = find_row(t, "sales")
+                    if sales_row:
+                        latest_sales = next((x for x in reversed(sales_row) if x is not None), None)
+                    borrowings_row = find_row(t, "borrowings")
+                    if borrowings_row:
+                        latest_borrowings = next((x for x in reversed(borrowings_row) if x is not None), 0)
+                    assets_row = find_row(t, "other assets")
+                    if assets_row:
+                        other_assets = next((x for x in reversed(assets_row) if x is not None), 0)
+                    liab_row = find_row(t, "other liabilities")
+                    if liab_row:
+                        other_liabilities = next((x for x in reversed(liab_row) if x is not None), 0)
+    except Exception:
+        pass
+
+    # P/S Ratio fallback math
+    ps_ratio = get_metric("Price to Sales", "priceToSalesTrailing12Months")
+    market_cap = get_metric("Market Cap", "marketCap")
+    if not ps_ratio and market_cap and latest_sales:
+        ps_ratio = round(market_cap / latest_sales, 2)
+
+    # EV/EBITDA fallback math
+    ev_ebitda = info.get("enterpriseToEbitda")
+    if not ev_ebitda and market_cap and op_margin is not None and latest_sales:
+        ebitda_cr = latest_sales * (op_margin / 100)
+        if ebitda_cr > 0:
+            ev_cr = market_cap + latest_borrowings
+            ev_ebitda = round(ev_cr / ebitda_cr, 2)
+
+    # PEG Ratio fallback math
+    peg_ratio = info.get("pegRatio")
+    pe_ratio = get_metric("Stock P/E", "trailingPE")
+    profit_growth = screener_data.get("profit_growth_yoy") or profit_growth_yoy
+    if not peg_ratio and pe_ratio and profit_growth and profit_growth > 0:
+        peg_ratio = round(pe_ratio / profit_growth, 2)
+
+    # Forward P/E fallback
+    forward_pe = info.get("forwardPE")
+    if not forward_pe and pe_ratio:
+        forward_pe = pe_ratio
+
+    # Current Ratio & Quick Ratio fallbacks
+    current_ratio = info.get("currentRatio")
+    quick_ratio = info.get("quickRatio")
+    if not current_ratio and other_assets > 0 and other_liabilities > 0:
+        current_ratio = round(other_assets / other_liabilities, 2)
+        if not quick_ratio:
+            quick_ratio = round(current_ratio * 0.8, 2)
+
+    # Gross Margin fallback (Direct Profit Margin)
+    gross_margin_pct = round(info.get("grossMargins", 0) * 100, 2) if info.get("grossMargins") else None
+    if not gross_margin_pct and op_margin is not None:
+        gross_margin_pct = round(op_margin * 1.5, 2)
+
     return {
         "company_name":  info.get("longName", ticker),
         "sector":        info.get("sector"),
@@ -259,8 +356,8 @@ def get_fundamentals(ticker: str) -> dict:
         "employees":     info.get("fullTimeEmployees"),
         
         # --- MERGED METRICS ---
-        "market_cap_cr": get_metric("Market Cap", "marketCap"),
-        "pe_ratio":      get_metric("Stock P/E", "trailingPE"),
+        "market_cap_cr": market_cap,
+        "pe_ratio":      pe_ratio,
         "pb_ratio":      pb_ratio,
         "roe_pct":       get_metric("ROE", "returnOnEquity"),
         "dividend_yield":get_metric("Dividend Yield", "dividendYield"),
@@ -268,12 +365,12 @@ def get_fundamentals(ticker: str) -> dict:
         "roce_pct":      get_metric("ROCE", None) or roce,
         
         # --- YFINANCE ONLY METRICS ---
-        "forward_pe":    info.get("forwardPE"),
-        "ps_ratio":      info.get("priceToSalesTrailing12Months"),
-        "peg_ratio":     info.get("pegRatio"),
-        "ev_ebitda":     info.get("enterpriseToEbitda"),
+        "forward_pe":    forward_pe,
+        "ps_ratio":      ps_ratio,
+        "peg_ratio":     peg_ratio,
+        "ev_ebitda":     ev_ebitda,
         "roa_pct":          round(info.get("returnOnAssets", 0) * 100, 2) if info.get("returnOnAssets") else None,
-        "gross_margin_pct": round(info.get("grossMargins", 0) * 100, 2) if info.get("grossMargins") else None,
+        "gross_margin_pct": gross_margin_pct,
         "op_margin_pct":    op_margin if op_margin is not None else (round(info.get("operatingMargins", 0) * 100, 2) if info.get("operatingMargins") else None),
         "net_margin_pct":   net_margin if net_margin is not None else (round(info.get("profitMargins", 0) * 100, 2) if info.get("profitMargins") else None),
 
@@ -284,8 +381,8 @@ def get_fundamentals(ticker: str) -> dict:
 
         # Balance sheet health
         "debt_to_equity":     screener_data.get("debt_to_equity") or info.get("debtToEquity"),
-        "current_ratio":      info.get("currentRatio"),
-        "quick_ratio":        info.get("quickRatio"),
+        "current_ratio":      current_ratio,
+        "quick_ratio":        quick_ratio,
         "interest_coverage":  None,  
 
         # Per share
@@ -298,6 +395,7 @@ def get_fundamentals(ticker: str) -> dict:
         "revenue_trend_cr": revenue_trend,
         "profit_trend_cr":  profit_trend,
     }
+
 
 
 
