@@ -18,9 +18,11 @@ load_dotenv()
 
 from fastapi import FastAPI, HTTPException, File, UploadFile, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from data_fetcher import (
     full_stock_analysis,
+    async_full_stock_analysis,
     get_price_data,
     get_mf_nav,
     get_mf_details,
@@ -28,6 +30,8 @@ from data_fetcher import (
     get_piotroski_score,
     yf_session
 )
+from cache import cache_instance
+import asyncio
 from broker_service import BrokerService
 
 
@@ -41,6 +45,42 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+async def prewarm_cache_loop():
+    popular_tickers = [
+        "RELIANCE.NS", "TCS.NS", "INFY.NS", "HDFCBANK.NS", "ITC.NS", 
+        "WIPRO.NS", "BAJFINANCE.NS", "TATAMOTORS.NS", "ASIANPAINT.NS", "SUNPHARMA.NS"
+    ]
+    print("Pre-warming background task started.")
+    while True:
+        try:
+            print(f"Pre-warming cache check...")
+            for ticker in popular_tickers:
+                cache_key = f"stock_analysis:{ticker}"
+                # If cache is valid and we are off-market, skip refreshing
+                if not cache_instance.is_market_hours() and cache_instance.get(cache_key) is not None:
+                    continue
+                    
+                print(f"Pre-warming ticker: {ticker}")
+                try:
+                    result = await async_full_stock_analysis(ticker)
+                    if result and "error" not in result:
+                        cache_instance.set(cache_key, result)
+                except Exception as ex:
+                    print(f"Error pre-warming {ticker}: {ex}")
+                await asyncio.sleep(2)
+        except Exception as e:
+            print(f"Error in pre-warm cache loop: {e}")
+            
+        # Sleep for 4 minutes
+        await asyncio.sleep(240)
+
+
+@app.on_event("startup")
+async def on_startup():
+    asyncio.create_task(prewarm_cache_loop())
+
 
 
 
@@ -126,18 +166,30 @@ def root():
 
 
 @app.post("/api/stock/analyze")
-def analyze_stock(req: TickerRequest):
+async def analyze_stock(req: TickerRequest):
     """
     Full stock analysis — price, fundamentals, technicals, Piotroski score.
-    NO LLM. No token limits. No API key needed beyond Yahoo Finance (free).
+    NO LLM. Cached for speed and API safety.
     """
     ticker = req.ticker.upper().strip()
     if "." not in ticker:
         ticker += ".NS"
+    
+    # Check cache first
+    cache_key = f"stock_analysis:{ticker}"
+    cached_data = cache_instance.get(cache_key)
+    if cached_data:
+        print(f"CACHE HIT for {ticker}")
+        return clean_nans({"success": True, "data": cached_data})
+
     try:
-        result = full_stock_analysis(ticker)
+        print(f"CACHE MISS for {ticker}. Running async analysis pipeline...")
+        result = await async_full_stock_analysis(ticker)
         if "error" in result:
             raise HTTPException(400, result["error"])
+        
+        # Save to cache
+        cache_instance.set(cache_key, result)
         return clean_nans({"success": True, "data": result})
     except HTTPException:
         raise
@@ -295,6 +347,69 @@ Warnings: {', '.join(verdict.get('warnings', [])[:3])}
             return {"success": True, "summary": None, "note": "Failed to generate summary content."}
     except Exception as e:
         return {"success": True, "summary": None, "note": f"AI error: {str(e)}"}
+
+
+@app.post("/api/stock/summarize/stream")
+def summarize_with_ai_stream(req: SummarizeRequest):
+    """
+    Streams a 3-sentence summary of the stock analysis using Gemini 1.5 Flash.
+    """
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    if not gemini_key:
+        def err_generator():
+            yield "Set GEMINI_API_KEY in .env to enable AI summaries."
+        return StreamingResponse(err_generator(), media_type="text/plain")
+
+    try:
+        import google.generativeai as genai
+        genai.configure(api_key=gemini_key)
+        
+        d = req.analysis_data
+        verdict = d.get("verdict", {})
+        fin = d.get("fundamentals", {})
+        price = d.get("price", {})
+        piotroski = d.get("piotroski", {})
+        tech = d.get("technicals", {})
+
+        prompt = f"""Write exactly 3 sentences summarizing this Indian stock for a retail investor.
+Be specific, use the numbers, keep plain language. No jargon.
+
+Stock: {d.get('company_name')} ({req.ticker})
+Overall verdict: {verdict.get('overall')}
+P/E: {fin.get('pe_ratio')} | ROE: {fin.get('roe_pct')}% | D/E: {fin.get('debt_to_equity')}
+Revenue growth: {fin.get('revenue_growth_yoy_pct')}% | Net margin: {fin.get('net_margin_pct')}%
+1Y price change: {price.get('change_1y_pct')}%
+Piotroski F-Score: {piotroski.get('score')}/9
+Technical score: {tech.get('technical_score')}/100
+Positives: {', '.join(verdict.get('flags', [])[:3])}
+Warnings: {', '.join(verdict.get('warnings', [])[:3])}
+
+3 sentences only. End with what type of investor this suits."""
+
+        def token_generator():
+            try:
+                model = genai.GenerativeModel("gemini-1.5-flash")
+                response = model.generate_content(prompt, stream=True)
+                for chunk in response:
+                    if chunk.text:
+                        yield chunk.text
+            except Exception as e:
+                # Fallback to gemini-pro if flash fails
+                try:
+                    model = genai.GenerativeModel("gemini-pro")
+                    response = model.generate_content(prompt, stream=True)
+                    for chunk in response:
+                        if chunk.text:
+                            yield chunk.text
+                except Exception as e2:
+                    yield f"AI summary generation failed: {str(e2)}"
+
+        return StreamingResponse(token_generator(), media_type="text/plain")
+    except Exception as e:
+        def fail_generator():
+            yield f"AI error: {str(e)}"
+        return StreamingResponse(fail_generator(), media_type="text/plain")
+
 
 
 

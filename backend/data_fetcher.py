@@ -13,6 +13,7 @@ from screener_fetcher import get_screener_fundamentals
 import requests
 import json
 import time
+import asyncio
 from datetime import datetime, timedelta
 
 import yfinance as yf
@@ -777,3 +778,85 @@ def full_stock_analysis(ticker: str) -> dict:
         },
         "fetched_at": datetime.now().isoformat(),
     }
+
+
+async def async_full_stock_analysis(ticker: str) -> dict:
+    """
+    Asynchronously run all stock analyses in parallel.
+    Uses asyncio.to_thread to run synchronous blocking data fetching calls in thread pools concurrently.
+    """
+    if "." not in ticker:
+        ticker = ticker + ".NS"
+
+    # Fetch all parameters in parallel thread executors
+    price_task = asyncio.to_thread(get_price_data, ticker)
+    fundamentals_task = asyncio.to_thread(get_fundamentals, ticker)
+    technicals_task = asyncio.to_thread(get_technical_indicators, ticker)
+    piotroski_task = asyncio.to_thread(get_piotroski_score, ticker)
+
+    price, fundamentals, technicals, piotroski = await asyncio.gather(
+        price_task, fundamentals_task, technicals_task, piotroski_task
+    )
+
+    if "error" in price:
+        return {"error": price["error"]}
+
+    # Rule-based verdict logic (same as synchronous version)
+    flags = []
+    warnings = []
+
+    pe = fundamentals.get("pe_ratio")
+    if pe:
+        if pe < 15:   flags.append("Cheap valuation (P/E < 15)")
+        elif pe > 40: warnings.append("Expensive valuation (P/E > 40)")
+
+    rev_growth = fundamentals.get("revenue_growth_yoy_pct")
+    if rev_growth:
+        if rev_growth > 15:  flags.append(f"Strong revenue growth ({rev_growth}% YoY)")
+        elif rev_growth < 0: warnings.append(f"Revenue declining ({rev_growth}% YoY)")
+
+    roe = fundamentals.get("roe_pct")
+    if roe:
+        if roe > 15: flags.append(f"Good ROE ({roe}%)")
+        elif roe < 8: warnings.append(f"Low ROE ({roe}%)")
+
+    de = fundamentals.get("debt_to_equity")
+    if de:
+        if de > 1.5: warnings.append(f"High debt (D/E: {de})")
+        elif de < 0.3: flags.append("Debt-free or very low debt")
+
+    tech_score = technicals.get("technical_score", 50)
+    if tech_score >= 65: flags.append("Positive technical momentum")
+    elif tech_score <= 35: warnings.append("Weak technical momentum")
+
+    pos = price.get("position_in_52w_range_pct", 50)
+    if pos > 80: warnings.append("Near 52-week high — limited upside in short term")
+    elif pos < 20: flags.append("Near 52-week low — potential value entry")
+
+    f_score = piotroski.get("score", 0)
+    if f_score >= 7: flags.append(f"High Piotroski F-Score ({f_score}/9) — quality business")
+    elif f_score <= 3: warnings.append(f"Low Piotroski F-Score ({f_score}/9) — weak fundamentals")
+
+    rating_score = len(flags) - len(warnings)
+    if rating_score >= 3:   overall = "Strong Buy Zone"
+    elif rating_score >= 1: overall = "Moderate Opportunity"
+    elif rating_score == 0: overall = "Neutral — Hold / Watch"
+    elif rating_score == -1: overall = "Caution — Review Needed"
+    else:                    overall = "Avoid — Multiple Red Flags"
+
+    return {
+        "ticker":        ticker,
+        "company_name":  fundamentals.get("company_name", ticker),
+        "sector":        fundamentals.get("sector"),
+        "price":         price,
+        "fundamentals":  fundamentals,
+        "technicals":    technicals,
+        "piotroski":     piotroski,
+        "verdict": {
+            "overall":   overall,
+            "flags":     flags,
+            "warnings":  warnings,
+        },
+        "fetched_at": datetime.now().isoformat(),
+    }
+

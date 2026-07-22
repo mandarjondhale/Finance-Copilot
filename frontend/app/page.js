@@ -816,18 +816,36 @@ function StockDashboard({ data }) {
 
   async function loadAiSummary() {
     setAiLoading(true);
+    setAiSummary(""); // Start empty so we can stream into it
     try {
-      const res  = await fetch(`${API}/api/stock/summarize`, {
+      const res = await fetch(`${API}/api/stock/summarize/stream`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ticker, analysis_data: data }),
       });
-      const json = await res.json();
-      setAiSummary(json.summary || json.note || json.error || "AI summary generation failed.");
-    } catch { setAiSummary("AI summary unavailable."); }
-    finally { setAiLoading(false); }
+      if (!res.ok) throw new Error("Failed to connect to AI server.");
 
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let done = false;
+      let buffer = "";
+
+      while (!done) {
+        const { value, done: doneReading } = await reader.read();
+        done = doneReading;
+        if (value) {
+          const chunk = decoder.decode(value, { stream: true });
+          buffer += chunk;
+          setAiSummary(buffer);
+        }
+      }
+    } catch (e) { 
+      setAiSummary("AI summary unavailable: " + e.message); 
+    } finally { 
+      setAiLoading(false); 
+    }
   }
+
 
   const overallColor =
     verdict.overall.includes("Strong Buy") ? "bg-emerald-500 text-white" :
