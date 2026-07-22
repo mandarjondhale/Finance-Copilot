@@ -19,10 +19,20 @@ import yfinance as yf
 import pandas as pd
 import numpy as np
 
+# Set up a reusable session with realistic user-agent headers to bypass Yahoo Finance cloud IP blocks
+yf_session = requests.Session()
+yf_session.headers.update({
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Connection": "keep-alive"
+})
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # 1. STOCK PRICE DATA  (yfinance — free, no key)
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def get_price_data(ticker: str) -> dict:
     """
@@ -32,7 +42,8 @@ def get_price_data(ticker: str) -> dict:
     if "." not in ticker:
         ticker = ticker + ".NS"
 
-    stock = yf.Ticker(ticker)
+    stock = yf.Ticker(ticker, session=yf_session)
+
 
     # 1 year of daily price history
     hist_1y = stock.history(period="1y")
@@ -97,7 +108,8 @@ def get_fundamentals(ticker: str) -> dict:
     if "." not in ticker:
         ticker = ticker + ".NS"
 
-    stock = yf.Ticker(ticker)
+    stock = yf.Ticker(ticker, session=yf_session)
+
     # --- ADDED SAFETY NET ---
     try:
         info = stock.info or {}
@@ -238,7 +250,8 @@ def get_technical_indicators(ticker: str) -> dict:
     if "." not in ticker:
         ticker = ticker + ".NS"
 
-    stock = yf.Ticker(ticker)
+    stock = yf.Ticker(ticker, session=yf_session)
+
     hist  = stock.history(period="1y")
 
     if hist.empty or len(hist) < 30:
@@ -372,7 +385,8 @@ def get_piotroski_score(ticker: str) -> dict:
     if "." not in ticker:
         ticker = ticker + ".NS"
 
-    stock  = yf.Ticker(ticker)
+    stock = yf.Ticker(ticker, session=yf_session)
+
     
     try:
         info = stock.info or {}

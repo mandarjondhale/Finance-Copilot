@@ -25,7 +25,8 @@ from data_fetcher import (
     get_mf_nav,
     get_mf_details,
     get_fundamentals,      
-    get_piotroski_score    
+    get_piotroski_score,
+    yf_session
 )
 from broker_service import BrokerService
 
@@ -335,7 +336,7 @@ async def upload_csv(file: UploadFile = File(...), current_user = Depends(get_cu
             
             for s in ([sym] if "." in sym else [sym, sym + ".NS"]):
                 try:
-                    hist = yf.Ticker(s).history(period="5d")
+                    hist = yf.Ticker(s, session=yf_session).history(period="5d")
                     if not hist.empty:
                         hist = hist.dropna(subset=["Close"])
                         if not hist.empty:
@@ -344,6 +345,7 @@ async def upload_csv(file: UploadFile = File(...), current_user = Depends(get_cu
                             break
                 except Exception:
                     continue
+
 
 
             # 2. Fetch Deep Analytics (Sectors, P/E, Piotroski)
@@ -489,7 +491,7 @@ async def get_broker_holdings(broker_name: str, req: BrokerCallbackRequest, curr
             
             for s in ([sym] if "." in sym else [sym, sym + ".NS"]):
                 try:
-                    hist = yf.Ticker(s).history(period="5d")
+                    hist = yf.Ticker(s, session=yf_session).history(period="5d")
                     if not hist.empty:
                         hist = hist.dropna(subset=["Close"])
                         if not hist.empty:
@@ -498,6 +500,7 @@ async def get_broker_holdings(broker_name: str, req: BrokerCallbackRequest, curr
                             break
                 except Exception:
                     continue
+
 
 
             # Fetch fundamentals & piotroski
