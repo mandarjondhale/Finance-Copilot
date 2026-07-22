@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import nseEquities from "./nse_equities.json";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
@@ -1174,6 +1175,11 @@ export default function Page() {
   const [result, setResult]   = useState(null);
   const [error, setError]     = useState("");
 
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState(0);
+  const searchContainerRef = useRef(null);
+
   const popular = ["RELIANCE","TCS","INFY","HDFCBANK","ITC","WIPRO","BAJFINANCE","TATAMOTORS","ASIANPAINT","SUNPHARMA"];
 
   useEffect(() => {
@@ -1183,6 +1189,56 @@ export default function Page() {
       catch (e) { localStorage.removeItem("fc_user"); }
     }
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (searchContainerRef.current && !searchContainerRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleInputChange = (e) => {
+    const val = e.target.value;
+    setTicker(val);
+    
+    if (val.trim().length >= 1) {
+      const filtered = nseEquities.filter(item => 
+        item.symbol.toLowerCase().includes(val.toLowerCase()) ||
+        item.name.toLowerCase().includes(val.toLowerCase())
+      ).slice(0, 8);
+      
+      setSuggestions(filtered);
+      setShowSuggestions(true);
+      setActiveSuggestionIndex(0);
+    } else {
+      setSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveSuggestionIndex(prev => Math.min(prev + 1, suggestions.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveSuggestionIndex(prev => Math.max(prev - 1, 0));
+    } else if (e.key === "Enter") {
+      if (showSuggestions && suggestions[activeSuggestionIndex]) {
+        e.preventDefault();
+        const selected = suggestions[activeSuggestionIndex].symbol;
+        setTicker(selected);
+        setShowSuggestions(false);
+        analyze(selected);
+      }
+    } else if (e.key === "Escape") {
+      setShowSuggestions(false);
+    }
+  };
+
 
   async function analyze(t) {
     const sym = (t || ticker).trim().toUpperCase();
@@ -1295,16 +1351,45 @@ export default function Page() {
 
         {tab === "stock" && (
           <>
-            <div className="bg-slate-900/60 backdrop-blur-md rounded-2xl border border-slate-800/80 p-6 mb-6 shadow-lg shadow-black/10">
+            <div ref={searchContainerRef} className="relative bg-slate-900/60 backdrop-blur-md rounded-2xl border border-slate-800/80 p-6 mb-6 shadow-lg shadow-black/10 z-30">
               <form onSubmit={e => { e.preventDefault(); analyze(); }} className="flex gap-3">
-                <input value={ticker} onChange={e => setTicker(e.target.value.toUpperCase())}
-                  placeholder="Enter NSE ticker e.g. RELIANCE, TCS, INFY"
+                <input value={ticker} 
+                  onChange={handleInputChange}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Search stock by name or ticker (e.g. Infosys, RELIANCE, TCS)"
                   className="flex-1 bg-slate-950/50 border border-slate-800/60 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/40 text-slate-100 placeholder-slate-600 focus:border-teal-500/50 transition-all" />
                 <button type="submit" disabled={loading}
                   className="bg-gradient-to-r from-teal-500 to-teal-600 hover:from-teal-600 hover:to-teal-700 text-white px-6 py-3 rounded-xl text-sm font-bold shadow-md shadow-teal-950/20 transition-all disabled:opacity-50">
                   {loading ? "Analyzing..." : "Analyze →"}
                 </button>
               </form>
+
+              {showSuggestions && suggestions.length > 0 && (
+                <div className="absolute left-6 right-6 top-[78px] mt-1 bg-[#0b101d]/95 backdrop-blur-lg border border-slate-800/90 rounded-xl shadow-2xl shadow-black/60 overflow-hidden z-50">
+                  {suggestions.map((item, index) => (
+                    <button
+                      key={item.symbol}
+                      onClick={() => {
+                        setTicker(item.symbol);
+                        setShowSuggestions(false);
+                        analyze(item.symbol);
+                      }}
+                      className={`w-full text-left px-4 py-3 flex justify-between items-center transition-colors border-b border-slate-800/40 last:border-0
+                        ${index === activeSuggestionIndex 
+                          ? "bg-slate-800/90 text-teal-300" 
+                          : "text-slate-300 hover:bg-slate-850 hover:text-slate-200"
+                        }`}
+                    >
+                      <div className="flex flex-col">
+                        <span className="text-xs font-black tracking-wider uppercase">{item.symbol}</span>
+                        <span className="text-[10px] text-slate-500 font-semibold">{item.name}</span>
+                      </div>
+                      <span className="text-[10px] bg-teal-500/10 text-teal-400 font-black px-2 py-0.5 rounded border border-teal-500/10 uppercase tracking-widest">NSE</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <div className="mt-4 flex gap-x-3 gap-y-1 flex-wrap items-center">
                 <span className="text-[10px] uppercase font-bold text-slate-500 tracking-wider">Try:</span>
                 {popular.map(s => (
