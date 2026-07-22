@@ -33,6 +33,55 @@ yf_session.headers.update({
 # 1. STOCK PRICE DATA  (yfinance — free, no key)
 # ─────────────────────────────────────────────────────────────────────────────
 
+def fetch_prices_via_query_api(ticker: str) -> pd.DataFrame:
+    """
+    Directly query Yahoo Finance chart API. Less guarded than yfinance scraper.
+    """
+    if "." not in ticker:
+        ticker = ticker + ".NS"
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?range=1y&interval=1d"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "application/json"
+    }
+    try:
+        r = requests.get(url, headers=headers, timeout=10)
+        if r.status_code != 200:
+            return pd.DataFrame()
+        data = r.json()
+        result = data.get("chart", {}).get("result", [])
+        if not result:
+            return pd.DataFrame()
+        
+        timestamps = result[0].get("timestamp", [])
+        indicators = result[0].get("indicators", {}).get("quote", [{}])[0]
+        close_prices = indicators.get("close", [])
+        volume_data = indicators.get("volume", [])
+        
+        if not timestamps or not close_prices:
+            return pd.DataFrame()
+            
+        clean_pts = []
+        for t, c, v in zip(timestamps, close_prices, volume_data):
+            if t is not None and c is not None:
+                date_str = str(datetime.fromtimestamp(t).date())
+                clean_pts.append({
+                    "date": date_str,
+                    "close": float(c),
+                    "volume": int(v) if v is not None else 0
+                })
+                
+        if not clean_pts:
+            return pd.DataFrame()
+            
+        df = pd.DataFrame(clean_pts)
+        df['date'] = pd.to_datetime(df['date'])
+        df = df.sort_values('date').reset_index(drop=True)
+        return df
+    except Exception as e:
+        print(f"Query API fallback error for {ticker}: {e}")
+        return pd.DataFrame()
+
 
 def get_price_data(ticker: str) -> dict:
     """
@@ -42,24 +91,30 @@ def get_price_data(ticker: str) -> dict:
     if "." not in ticker:
         ticker = ticker + ".NS"
 
-    stock = yf.Ticker(ticker, session=yf_session)
+    hist_1y = pd.DataFrame()
+    try:
+        stock = yf.Ticker(ticker, session=yf_session)
+        hist_1y = stock.history(period="1y")
+        if not hist_1y.empty:
+            hist_1y = hist_1y.dropna(subset=["Close"])
+    except Exception:
+        pass
 
-
-    # 1 year of daily price history
-    hist_1y = stock.history(period="1y")
-    if not hist_1y.empty:
-        hist_1y = hist_1y.dropna(subset=["Close"])
-
-    hist_6m = stock.history(period="6mo")
-    if not hist_6m.empty:
-        hist_6m = hist_6m.dropna(subset=["Close"])
-
-    hist_1m = stock.history(period="1mo")
-    if not hist_1m.empty:
-        hist_1m = hist_1m.dropna(subset=["Close"])
+    # Fallback to direct query API if yfinance fails
+    if hist_1y.empty:
+        df_clean = fetch_prices_via_query_api(ticker)
+        if not df_clean.empty:
+            hist_1y = df_clean.set_index('date')
+            hist_1y.index.name = 'Date'
+            hist_1y = hist_1y.rename(columns={'close': 'Close', 'volume': 'Volume'})
 
     if hist_1y.empty:
         return {"error": f"No data for {ticker}. Check ticker symbol."}
+
+    # Slice 6m and 1m from 1y history
+    hist_6m = hist_1y[hist_1y.index >= (hist_1y.index.max() - pd.Timedelta(days=180))]
+    hist_1m = hist_1y[hist_1y.index >= (hist_1y.index.max() - pd.Timedelta(days=30))]
+
 
 
     current_price  = round(hist_1y["Close"].iloc[-1], 2)
@@ -250,12 +305,23 @@ def get_technical_indicators(ticker: str) -> dict:
     if "." not in ticker:
         ticker = ticker + ".NS"
 
-    stock = yf.Ticker(ticker, session=yf_session)
+    hist = pd.DataFrame()
+    try:
+        stock = yf.Ticker(ticker, session=yf_session)
+        hist = stock.history(period="1y")
+    except Exception:
+        pass
 
-    hist  = stock.history(period="1y")
+    if hist.empty:
+        df_clean = fetch_prices_via_query_api(ticker)
+        if not df_clean.empty:
+            hist = df_clean.set_index('date')
+            hist.index.name = 'Date'
+            hist = hist.rename(columns={'close': 'Close', 'volume': 'Volume'})
 
     if hist.empty or len(hist) < 30:
         return {"error": "Not enough price history"}
+
 
     close = hist["Close"]
     volume = hist["Volume"]
